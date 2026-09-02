@@ -300,7 +300,6 @@ export function MembershipPlansModule() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-lg font-semibold tracking-[-0.03em] text-[#0F172A]">{plan.planName}</h2>
-                      <span className="rounded-full bg-[#F1F5F9] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[#64748B]">Future: popular</span>
                     </div>
                     <p className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-[#0F172A]">{formatMoney(Number(plan.price))}</p>
                     <p className="mt-1 text-sm text-[#64748B]">for {plan.durationInDays} days</p>
@@ -329,11 +328,10 @@ export function MembershipPlansModule() {
                   <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${plan.isActive ? "bg-[#EEF2FF] text-[#4338CA]" : "bg-[#F1F5F9] text-[#475569]"}`}>
                     {plan.isActive ? "Active" : "Inactive"}
                   </span>
-                  <span className="rounded-full bg-[#F8FAFC] px-2.5 py-1 text-xs font-medium text-[#64748B]">— members enrolled</span>
                 </div>
 
                 <div className="mt-5 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3">
-                  <p className="text-xs font-semibold text-[#475569]">Future-ready</p>
+                  <p className="text-xs font-semibold text-[#475569]">Plan Capabilities</p>
                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[#64748B]">
                     <span>Recommended plan</span>
                     <span>Color label</span>

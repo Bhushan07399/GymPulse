@@ -27,7 +27,7 @@ export function ChartEmptyState() {
     <div className="flex min-h-48 flex-col items-center justify-center rounded-xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] px-5 text-center">
       <span className="grid size-10 place-items-center rounded-xl bg-white text-[#64748B] shadow-sm"><BarChart3 className="size-5" /></span>
       <p className="mt-3 text-sm font-semibold text-[#334155]">Trend data will appear here</p>
-      <p className="mt-1 max-w-xs text-sm leading-5 text-[#64748B]">Historical reporting is not available in the current dashboard summary.</p>
+      <p className="mt-1 max-w-xs text-sm leading-5 text-[#64748B]">Visit Business Analytics or Reports for detailed historical trends and CSV exports.</p>
     </div>
   );
 }
