@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+}
+
+.bg-zinc-50 { background-color: #F8FAFC; }
+.bg-zinc-100 { background-color: #F8FAFC; }
+.bg-zinc-200 { background-color: #E2E8F0; }
+.bg-zinc-800 { background-color: #334155; }
+.bg-zinc-950 { background-color: #0F172A; }
+.text-zinc-900 { color: #0F172A; }
+.text-zinc-700 { color: #334155; }
+.text-zinc-600, .text-zinc-500 { color: #64748B; }
+.text-zinc-400 { color: #94A3B8; }
+.text-zinc-300 { color: #CBD5E1; }
+.border-zinc-300, .border-zinc-200 { border-color: #E2E8F0; }
+.divide-zinc-100 > :not(:last-child) { border-color: #E2E8F0; }
+.hover\:bg-zinc-100:hover { background-color: #F8FAFC; }
+.hover\:bg-zinc-800:hover { background-color: #334155; }
+.hover\:text-zinc-900:hover { color: #0F172A; }
+.bg-red-600 { background-color: #EF4444; }
+.text-red-600 { color: #EF4444; }
+.hover\:bg-red-700:hover { background-color: #DC2626; }
+.text-amber-700 { color: #F59E0B; }
+.bg-amber-100 { background-color: #FEF3C7; }
+.text-amber-800 { color: #B45309; }
+
+@keyframes login-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes login-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes login-image-zoom {
+  from { transform: scale(1); }
+  to { transform: scale(1.045); }
+}

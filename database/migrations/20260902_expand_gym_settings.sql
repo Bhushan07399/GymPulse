@@ -1,0 +1,25 @@
+-- Migration: 20260902_expand_gym_settings.sql
+-- Description: Expand gyms and gym_settings tables for full Gym Settings module functionality
+
+ALTER TABLE gyms ADD COLUMN IF NOT EXISTS description TEXT NULL;
+ALTER TABLE gyms ADD COLUMN IF NOT EXISTS google_maps_url TEXT NULL;
+ALTER TABLE gyms ADD COLUMN IF NOT EXISTS cover_image_url TEXT NULL;
+ALTER TABLE gyms ADD COLUMN IF NOT EXISTS facebook_url TEXT NULL;
+ALTER TABLE gyms ADD COLUMN IF NOT EXISTS website_url TEXT NULL;
+ALTER TABLE gyms ADD COLUMN IF NOT EXISTS legal_name VARCHAR(255) NULL;
+ALTER TABLE gyms ADD COLUMN IF NOT EXISTS privacy_policy TEXT NULL;
+
+ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS description TEXT NULL;
+ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS google_maps_url TEXT NULL;
+ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS cover_image_url TEXT NULL;
+ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS facebook_url TEXT NULL;
+ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS website_url TEXT NULL;
+ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS legal_name VARCHAR(255) NULL;
+ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS privacy_policy TEXT NULL;
+ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS operating_hours JSONB NULL;
+ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS receipt_header TEXT NULL;
+ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS receipt_footer TEXT NULL;
+ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS show_gym_logo BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS show_gst BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS show_address BOOLEAN NOT NULL DEFAULT TRUE;
+ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS show_contact_number BOOLEAN NOT NULL DEFAULT TRUE;

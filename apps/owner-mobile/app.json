@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "GymPulse Owner",
+    "slug": "gympulse-owner-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gympulse.owner",
+      "infoPlist": {
+        "NSCameraUsageDescription": "GymPulse requires camera access to scan member QR passes at reception."
+      }
+    },
+    "android": {
+      "package": "com.gympulse.owner",
+      "permissions": [
+        "CAMERA"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "GymPulse requires camera access to scan member QR passes at reception."
+        }
+      ]
+    ]
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "GymPulse Member",
+    "slug": "gympulse-member-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gympulse.member"
+    },
+    "android": {
+      "package": "com.gympulse.member"
+    }
+  }
+}
