@@ -2,23 +2,26 @@ const { pool } = require('../db/pool');
 const { logger } = require('../config/logger');
 const { AppError } = require('../utils/app-error');
 
-const PLAN_HIERARCHY = {
-  Basic: 1,
-  BASIC: 1,
-  Growth: 2,
-  GROWTH: 2,
-  Standard: 2,
-  STANDARD: 2,
-  Pro: 3,
-  PRO: 3,
-  Premium: 4,
-  PREMIUM: 4,
-  'Gym + Classes': 4,
-  'GYM + CLASSES': 4,
-  'Gym + Classes ₹4,999': 4,
-  'Gym + Classes (₹4,999)': 4,
-  'Classes All-Access': 4,
-  Ultra: 4
+const resolveCanonicalPlan = (rawPlan) => {
+  if (!rawPlan) return 'Growth';
+  const lower = String(rawPlan).trim().toLowerCase();
+
+  if (lower.includes('class')) {
+    return 'Gym + Classes';
+  }
+  if (lower.includes('pro')) {
+    return 'Pro';
+  }
+  if (lower.includes('growth') || lower.includes('basic') || lower.includes('standard')) {
+    return 'Growth';
+  }
+  return 'Growth';
+};
+
+const PLAN_RANKS = {
+  Growth: 1,
+  Pro: 2,
+  'Gym + Classes': 3
 };
 
 const FEATURE_PLAN_REQUIREMENT = {
@@ -28,39 +31,22 @@ const FEATURE_PLAN_REQUIREMENT = {
   MEASUREMENTS: 'Growth',
   PROGRESS_TRACKING: 'Growth',
   FITNESS_GOALS: 'Growth',
-  ADVANCED_REPORTS: 'Growth',
+  BASIC_REPORTS: 'Growth',
+  STAFF_MANAGEMENT: 'Pro',
   WHATSAPP_AUTOMATION: 'Pro',
   ADVANCED_ANALYTICS: 'Pro',
+  ADVANCED_REPORTS: 'Pro',
   CLASSES: 'Gym + Classes',
   CLASSES_MODULE: 'Gym + Classes',
+  CLASS_PLANS: 'Gym + Classes',
   TRAINER_SYSTEM: 'Gym + Classes',
   DIET_SYSTEM: 'Gym + Classes',
   WORKOUT_V2: 'Gym + Classes'
 };
 
 const getPlanRank = (planName) => {
-  if (!planName) return 1;
-  const str = String(planName).trim();
-  if (PLAN_HIERARCHY[str]) return PLAN_HIERARCHY[str];
-
-  const lower = str.toLowerCase();
-  if (
-    lower.includes('class') ||
-    lower.includes('premium') ||
-    lower.includes('4,999') ||
-    lower.includes('4999') ||
-    lower.includes('ultra') ||
-    lower.includes('all-access')
-  ) {
-    return 4;
-  }
-  if (lower.includes('pro')) {
-    return 3;
-  }
-  if (lower.includes('growth') || lower.includes('standard')) {
-    return 2;
-  }
-  return 1;
+  const canonical = resolveCanonicalPlan(planName);
+  return PLAN_RANKS[canonical] || 1;
 };
 
 const authorizePlanFeature = (featureName) => async (req, res, next) => {
@@ -72,7 +58,7 @@ const authorizePlanFeature = (featureName) => async (req, res, next) => {
 
   try {
     const result = await pool.query(
-      `SELECT subscription_plan, subscription_end_date 
+      `SELECT subscription_plan, subscription_end_date, subscription_status, trial_started_at, trial_ends_at 
        FROM gyms 
        WHERE id = $1 AND deleted_at IS NULL 
        LIMIT 1`,
@@ -80,21 +66,71 @@ const authorizePlanFeature = (featureName) => async (req, res, next) => {
     );
 
     const gym = result.rows[0];
-    const currentPlan = gym?.subscription_plan || 'Basic';
-    const requiredPlan = FEATURE_PLAN_REQUIREMENT[featureName] || 'Basic';
+    const now = new Date();
+    const status = gym?.subscription_status || 'ACTIVE';
+    const trialEndsAt = gym?.trial_ends_at ? new Date(gym.trial_ends_at) : null;
+    const subEndDate = gym?.subscription_end_date ? new Date(gym.subscription_end_date) : null;
 
-    let isExpired = false;
-    if (gym?.subscription_end_date) {
-      const endDate = new Date(gym.subscription_end_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (endDate < today) {
-        isExpired = true;
+    let isTrialActive = false;
+    let isTrialExpired = false;
+    let isSubExpired = false;
+
+    if (status === 'TRIAL') {
+      if (trialEndsAt && now < trialEndsAt) {
+        isTrialActive = true;
+      } else {
+        isTrialExpired = true;
       }
+    } else if (status === 'ACTIVE') {
+      if (subEndDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (subEndDate < today) {
+          isSubExpired = true;
+        }
+      }
+    } else if (status === 'EXPIRED') {
+      isSubExpired = true;
     }
 
-    const currentRank = isExpired ? 0 : getPlanRank(currentPlan);
+    let currentRank = 0;
+    let currentPlan = gym?.subscription_plan || 'Growth';
+
+    if (isTrialActive) {
+      currentRank = 1; // Growth trial only
+      currentPlan = 'Growth (Trial)';
+    } else if (isTrialExpired || isSubExpired) {
+      currentRank = 0; // Lock all protected features
+    } else {
+      currentRank = getPlanRank(currentPlan);
+    }
+
+    const requiredPlan = FEATURE_PLAN_REQUIREMENT[featureName] || 'Growth';
     const requiredRank = getPlanRank(requiredPlan);
+
+    if (currentRank === 0) {
+      logger.debug({
+        path: req.originalUrl,
+        userId: req.user?.id,
+        gymId,
+        role: req.user?.role,
+        featureName,
+        status,
+        isTrialExpired,
+        isSubExpired
+      }, '[AUTH DEBUG] Subscription required: trial or subscription expired');
+
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'SUBSCRIPTION_REQUIRED',
+          message: 'Your 3-day free trial or subscription has expired. Please select a subscription plan to continue using GymPulse.',
+          requiredPlan,
+          currentPlan,
+          isExpired: true
+        }
+      });
+    }
 
     if (currentRank < requiredRank) {
       logger.debug({
@@ -107,7 +143,6 @@ const authorizePlanFeature = (featureName) => async (req, res, next) => {
         currentPlan,
         currentRank,
         requiredRank,
-        isExpired,
         authorizationResult: 'REJECTED_FEATURE_LOCKED'
       }, '[AUTH DEBUG] Feature locked for gym plan');
 
@@ -115,25 +150,13 @@ const authorizePlanFeature = (featureName) => async (req, res, next) => {
         success: false,
         error: {
           code: 'FEATURE_LOCKED',
-          message: isExpired
-            ? `Your subscription has expired. Please renew to access ${featureName}.`
-            : `Feature '${featureName}' is available on the Gym + Classes (₹4,999) plan. Current plan: ${currentPlan}.`,
+          message: `Feature '${featureName}' is available on the ${requiredPlan} plan. Current plan: ${currentPlan}.`,
           requiredPlan,
           currentPlan,
-          isExpired
+          isExpired: false
         }
       });
     }
-
-    logger.debug({
-      path: req.originalUrl,
-      userId: req.user?.id,
-      gymId,
-      role: req.user?.role,
-      requiredEntitlement: featureName,
-      currentPlan,
-      authorizationResult: 'GRANTED'
-    }, '[AUTH DEBUG] Feature entitlement check granted');
 
     req.gymSubscriptionPlan = currentPlan;
     next();
@@ -142,4 +165,62 @@ const authorizePlanFeature = (featureName) => async (req, res, next) => {
   }
 };
 
-module.exports = { authorizePlanFeature, FEATURE_PLAN_REQUIREMENT, PLAN_HIERARCHY, getPlanRank };
+const ensureGymSubscriptionActive = async (req, res, next) => {
+  const gymId = req.user?.gymId;
+  if (!gymId) return next(new AppError(401, 'Unauthorized: Gym context required.'));
+
+  try {
+    const result = await pool.query(
+      `SELECT subscription_plan, subscription_end_date, subscription_status, trial_started_at, trial_ends_at 
+       FROM gyms 
+       WHERE id = $1 AND deleted_at IS NULL 
+       LIMIT 1`,
+      [gymId]
+    );
+
+    const gym = result.rows[0];
+    const now = new Date();
+    const status = gym?.subscription_status || 'ACTIVE';
+    const trialEndsAt = gym?.trial_ends_at ? new Date(gym.trial_ends_at) : null;
+    const subEndDate = gym?.subscription_end_date ? new Date(gym.subscription_end_date) : null;
+
+    let isTrialExpired = false;
+    let isSubExpired = false;
+
+    if (status === 'TRIAL') {
+      if (!trialEndsAt || now >= trialEndsAt) isTrialExpired = true;
+    } else if (status === 'ACTIVE') {
+      if (subEndDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (subEndDate < today) isSubExpired = true;
+      }
+    } else if (status === 'EXPIRED') {
+      isSubExpired = true;
+    }
+
+    if (isTrialExpired || isSubExpired) {
+      return res.status(403).json({
+        success: false,
+        error: {
+          code: 'SUBSCRIPTION_REQUIRED',
+          message: 'Your 3-day free trial or subscription has expired. Please select a subscription plan to continue using GymPulse.',
+          isExpired: true
+        }
+      });
+    }
+
+    next();
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = {
+  authorizePlanFeature,
+  ensureGymSubscriptionActive,
+  FEATURE_PLAN_REQUIREMENT,
+  PLAN_RANKS,
+  getPlanRank,
+  resolveCanonicalPlan
+};

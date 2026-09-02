@@ -157,27 +157,42 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
   });
 
   const hasClassFeature = summaryQuery.data?.hasClassFeature !== false;
+  const trialActive = Boolean((summaryQuery.data as any)?.isTrialActive);
+  const trialExpired = Boolean((summaryQuery.data as any)?.isTrialExpired);
+  const trialDaysRemaining = Number((summaryQuery.data as any)?.trialDaysRemaining ?? 0);
 
   useEffect(() => {
     if (!isAuthenticated) {
       router.replace("/login");
-    } else if (!hasDashboardAccess) {
+      return;
+    }
+
+    if (!hasDashboardAccess) {
       router.replace("/subscription");
-    } else if (isReceptionist) {
+      return;
+    }
+
+    if (isReceptionist) {
       const ownerOnlyRoutes = [
         "/dashboard/staff",
         "/dashboard/reports",
         "/dashboard/settings",
         "/dashboard/membership-plans",
         "/dashboard/whatsapp",
-        "/dashboard/business-analytics"
+        "/dashboard/business-analytics",
       ];
+
       const isOwnerOnly = ownerOnlyRoutes.some((route) => pathname.startsWith(route));
+
       if (isOwnerOnly || pathname === "/dashboard") {
         router.replace("/dashboard/reception");
       }
     }
-  }, [hasDashboardAccess, isAuthenticated, isReceptionist, pathname, router]);
+
+    if (summaryQuery.data && !hasClassFeature && pathname.startsWith("/dashboard/classes")) {
+      router.replace("/dashboard");
+    }
+  }, [hasDashboardAccess, hasClassFeature, isAuthenticated, isReceptionist, pathname, router, summaryQuery.data]);
 
   const handleLogout = () => {
     queryClient.clear();
@@ -322,7 +337,62 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
       {/* Desktop Main Layout */}
       <div className="lg:grid lg:grid-cols-[288px_minmax(0,1fr)]">
         <div className="hidden lg:block lg:h-screen lg:sticky lg:top-0">{sidebar}</div>
-        <main className="px-4 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10 pb-24 lg:pb-10">{children}</main>
+        <main className="px-4 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10 pb-24 lg:pb-10">
+          {trialActive && (
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-amber-300 bg-amber-50/90 p-4 text-amber-950 shadow-sm backdrop-blur">
+              <div className="flex items-center gap-3">
+                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-500 font-black text-xs text-white shadow-sm">
+                  3D
+                </span>
+                <div>
+                  <p className="text-xs font-extrabold tracking-tight">
+                    Free Trial Active — {trialDaysRemaining === 1 ? "Ends Today" : `${trialDaysRemaining} days remaining`}
+                  </p>
+                  <p className="text-[11px] text-amber-800 font-medium leading-normal">
+                    You currently have Growth Plan features. Upgrade anytime to unlock Pro automation & Group Classes.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/subscription"
+                className="inline-flex items-center justify-center rounded-xl bg-amber-900 px-4 py-2.5 text-xs font-bold text-white shadow transition hover:bg-amber-950 shrink-0"
+              >
+                Choose Subscription Plan
+              </Link>
+            </div>
+          )}
+
+          {trialExpired && pathname !== "/subscription" && !pathname.startsWith("/dashboard/membership-plans") && (
+            <div className="fixed inset-0 z-50 grid place-items-center bg-[#0F172A]/70 p-4 backdrop-blur-sm">
+              <div role="dialog" aria-modal="true" className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-2xl border border-slate-200">
+                <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-rose-50 text-rose-600 font-bold text-xl">
+                  ⌛
+                </span>
+                <h2 className="mt-4 text-xl font-extrabold tracking-tight text-slate-900">Your 3-Day Free Trial Has Expired</h2>
+                <p className="mt-2 text-xs leading-5 text-slate-600 font-medium">
+                  Your trial period has ended. Select a customer plan (Growth, Pro, or Gym + Classes) to reactivate your gym dashboard.
+                </p>
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  <Link
+                    href="/subscription"
+                    className="inline-flex items-center justify-center rounded-xl bg-[#0F172A] px-4 py-3 text-xs font-bold text-white shadow-md transition hover:bg-slate-800"
+                  >
+                    View Pricing Plans
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="rounded-xl border border-slate-200 px-4 py-3 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+                  >
+                    Sign Out
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {children}
+        </main>
       </div>
 
       {/* Mobile Fixed Bottom Navigation Bar */}

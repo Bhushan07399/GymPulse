@@ -68,11 +68,13 @@ export const MemberDashboardScreen = ({ navigation }: MemberDashboardScreenProps
               <Text style={styles.gridDesc}>{t('qrPass.showAtReception', 'Show at reception for check-in')}</Text>
             </Card>
 
-            <Card style={styles.gridCard} onPress={() => navigation.navigate('ClassesTab')}>
-              <Text style={styles.gridIcon}>🏋️</Text>
-              <Text style={styles.gridTitle}>{t('classes.title', 'Group Classes')}</Text>
-              <Text style={styles.gridDesc}>{t('classes.browseClasses', 'Browse & book daily sessions')}</Text>
-            </Card>
+            {Boolean(summary?.hasClassFeature && summary?.hasClassEntitlement) && (
+              <Card style={styles.gridCard} onPress={() => navigation.navigate('ClassesTab')}>
+                <Text style={styles.gridIcon}>🏋️</Text>
+                <Text style={styles.gridTitle}>{t('classes.title', 'Group Classes')}</Text>
+                <Text style={styles.gridDesc}>{t('classes.browseClasses', 'Browse & book daily sessions')}</Text>
+              </Card>
+            )}
           </View>
 
           <Card style={styles.fullCard} onPress={() => navigation.navigate('AttendanceTab')}>

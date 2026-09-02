@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { env } = require('../config/env');
 const memberAppRepository = require('../repositories/member-app.repository');
+const { resolveCanonicalPlan } = require('../middleware/authorize-plan-feature');
 const { AppError } = require('../utils/app-error');
 
 const PASSWORD_SALT_ROUNDS = 12;
@@ -79,6 +80,30 @@ const getMemberDashboard = async (gymId, memberId) => {
     throw new AppError(404, 'Member profile not found.');
   }
 
+  const now = new Date();
+  const gymStatus = profile.gym_subscription_status || 'ACTIVE';
+  const gymTrialEndsAt = profile.gym_trial_ends_at ? new Date(profile.gym_trial_ends_at) : null;
+  const gymSubEndDate = profile.gym_subscription_end_date ? new Date(profile.gym_subscription_end_date) : null;
+
+  let isGymTrialExpired = false;
+  let isGymSubExpired = false;
+
+  if (gymStatus === 'TRIAL') {
+    if (!gymTrialEndsAt || now >= gymTrialEndsAt) isGymTrialExpired = true;
+  } else if (gymStatus === 'ACTIVE') {
+    if (gymSubEndDate) {
+      const todayZero = new Date();
+      todayZero.setHours(0, 0, 0, 0);
+      if (gymSubEndDate < todayZero) isGymSubExpired = true;
+    }
+  } else if (gymStatus === 'EXPIRED') {
+    isGymSubExpired = true;
+  }
+
+  if (isGymTrialExpired || isGymSubExpired) {
+    throw new AppError(403, 'Your gym subscription or trial has expired. Please contact your gym administrator.', 'SUBSCRIPTION_REQUIRED');
+  }
+
   const todayAttendance = await memberAppRepository.getTodayAttendanceForMember(gymId, memberId);
   const attendanceStats = await memberAppRepository.getMemberAttendanceStats(gymId, memberId);
   const latestPayment = await memberAppRepository.getMemberLatestPayment(gymId, memberId);
@@ -86,6 +111,7 @@ const getMemberDashboard = async (gymId, memberId) => {
   const measurements = await memberAppRepository.listMemberBodyMeasurements(gymId, memberId);
   const goals = await memberAppRepository.listMemberFitnessGoals(gymId, memberId);
   const notifications = await memberAppRepository.listMemberNotifications(gymId, memberId);
+  const unreadNotificationsCount = notifications.filter((n) => !n.is_read).length;
 
   const today = new Date();
   const expiryDate = new Date(profile.expiry_date);
@@ -108,9 +134,13 @@ const getMemberDashboard = async (gymId, memberId) => {
     }
   }
 
-  const unreadNotificationsCount = notifications.filter((n) => !n.is_read).length;
+  const canonicalPlan = resolveCanonicalPlan(profile.gym_subscription_plan);
+  const hasClassFeature = canonicalPlan === 'Gym + Classes';
+  const hasClassEntitlement = hasClassFeature ? await memberAppRepository.checkMemberClassEntitlement(gymId, memberId) : false;
 
   return {
+    hasClassFeature,
+    hasClassEntitlement,
     profile: {
       id: profile.id,
       memberId: profile.member_id,

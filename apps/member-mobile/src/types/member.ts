@@ -19,6 +19,8 @@ export interface MemberDashboardSummary {
     totalCheckIns: number;
     lastCheckInDate: string | null;
   };
+  hasClassFeature?: boolean;
+  hasClassEntitlement?: boolean;
 }
 
 export interface DigitalCardData {

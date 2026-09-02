@@ -1,12 +1,14 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useQuery } from '@tanstack/react-query';
 import { Colors } from '../theme/colors';
 import { MainTabParamList } from '../types/navigation';
 import { MemberDashboardScreen } from '../screens/MemberDashboardScreen';
 import { QrPassScreen } from '../screens/QrPassScreen';
 import { AttendanceHistoryScreen } from '../screens/AttendanceHistoryScreen';
 import { ClassScheduleScreen } from '../screens/ClassScheduleScreen';
+import { memberDashboardService } from '../services/dashboard.service';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -17,6 +19,13 @@ const TabIcon = ({ icon, focused }: { icon: string; focused: boolean }) => (
 );
 
 export const MainTabNavigator = () => {
+  const { data: summary } = useQuery({
+    queryKey: ['memberDashboardSummary'],
+    queryFn: () => memberDashboardService.getSummary(),
+  });
+
+  const showClasses = Boolean(summary?.hasClassFeature && summary?.hasClassEntitlement);
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -43,14 +52,16 @@ export const MainTabNavigator = () => {
           tabBarIcon: ({ focused }) => <TabIcon icon="📱" focused={focused} />,
         }}
       />
-      <Tab.Screen
-        name="ClassesTab"
-        component={ClassScheduleScreen}
-        options={{
-          tabBarLabel: 'Classes',
-          tabBarIcon: ({ focused }) => <TabIcon icon="🏋️" focused={focused} />,
-        }}
-      />
+      {showClasses && (
+        <Tab.Screen
+          name="ClassesTab"
+          component={ClassScheduleScreen}
+          options={{
+            tabBarLabel: 'Classes',
+            tabBarIcon: ({ focused }) => <TabIcon icon="🏋️" focused={focused} />,
+          }}
+        />
+      )}
       <Tab.Screen
         name="AttendanceTab"
         component={AttendanceHistoryScreen}

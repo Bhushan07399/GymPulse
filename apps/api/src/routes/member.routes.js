@@ -11,8 +11,10 @@ const {
 } = require('../validations/member.validation');
 const { validate } = require('../validations/validate');
 
+const { ensureGymSubscriptionActive } = require('../middleware/authorize-plan-feature');
+
 const memberRouter = Router();
-const staffAllowed = [authenticate, authorize('Owner', 'Receptionist', 'Staff')];
+const staffAllowed = [authenticate, authorize('Owner', 'Receptionist', 'Staff'), ensureGymSubscriptionActive];
 
 memberRouter.post(
   '/',

@@ -228,7 +228,7 @@ export function MembershipPlansModule() {
             </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Gym & Class Membership Plans</h1>
             <p className="text-xs sm:text-sm text-slate-300 max-w-xl font-medium">
-              Configure Basic, Standard/Growth, Pro, and Gym + Classes (₹4,999) plan pricing, durations, and allowed features.
+              Configure Growth, Pro, and Gym + Classes plan pricing, durations, and allowed features.
             </p>
           </div>
 

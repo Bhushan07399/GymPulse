@@ -31,7 +31,9 @@ const getMemberProfile = async (gymId, memberId) => {
            m.join_date, m.expiry_date, m.qr_code, m.profile_photo_url, m.medical_notes,
            m.is_active, m.created_at,
            g.name AS gym_name, g.logo_url AS gym_logo_url, g.phone AS gym_phone,
-           g.address AS gym_address, g.city AS gym_city,
+           g.address AS gym_address, g.city AS gym_city, g.subscription_plan AS gym_subscription_plan,
+           g.subscription_status AS gym_subscription_status, g.trial_started_at AS gym_trial_started_at,
+           g.trial_ends_at AS gym_trial_ends_at, g.subscription_end_date AS gym_subscription_end_date,
            mp.plan_name, mp.price AS plan_price, mp.duration_in_days
     FROM members m
     JOIN gyms g ON m.gym_id = g.id
@@ -41,6 +43,17 @@ const getMemberProfile = async (gymId, memberId) => {
   `;
   const result = await pool.query(query, [memberId, gymId]);
   return result.rows[0] ?? null;
+};
+
+const checkMemberClassEntitlement = async (gymId, memberId) => {
+  const query = `
+    SELECT EXISTS (
+      SELECT 1 FROM class_memberships
+      WHERE gym_id = $1 AND member_id = $2 AND status = 'Active' AND expiry_date >= CURRENT_DATE
+    ) AS has_class_membership
+  `;
+  const result = await pool.query(query, [gymId, memberId]);
+  return Boolean(result.rows[0]?.has_class_membership);
 };
 
 const getTodayAttendanceForMember = async (gymId, memberId) => {
@@ -510,6 +523,7 @@ module.exports = {
   findMemberForAuth,
   updateMemberPassword,
   getMemberProfile,
+  checkMemberClassEntitlement,
   getTodayAttendanceForMember,
   getMemberAttendanceStats,
   getMemberLatestPayment,

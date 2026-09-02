@@ -45,9 +45,20 @@ const getSummary = async (gymId) => {
       WHERE gym_id = $1
     ),
     gym_settings_stats AS (
-      SELECT COALESCE(has_classes_enabled, TRUE) AS has_classes_enabled
-      FROM gym_settings
-      WHERE gym_id = $1
+      SELECT 
+        g.subscription_plan,
+        g.subscription_status,
+        g.trial_started_at,
+        g.trial_ends_at,
+        (
+          CASE 
+            WHEN g.subscription_status = 'ACTIVE' AND LOWER(g.subscription_plan) LIKE '%class%' THEN TRUE 
+            ELSE FALSE 
+          END
+        ) AND COALESCE(gs.has_classes_enabled, TRUE) AS has_classes_enabled
+      FROM gyms g
+      LEFT JOIN gym_settings gs ON gs.gym_id = g.id
+      WHERE g.id = $1
     ),
     attendance_stats AS (
       SELECT COUNT(*)::INTEGER AS todays_attendance
@@ -167,6 +178,10 @@ const getSummary = async (gymId) => {
       class_revenue_stats.class_total_revenue,
       class_revenue_stats.class_monthly_revenue,
       COALESCE(gym_settings_stats.has_classes_enabled, TRUE) AS has_classes_enabled,
+      gym_settings_stats.subscription_plan,
+      gym_settings_stats.subscription_status,
+      gym_settings_stats.trial_started_at,
+      gym_settings_stats.trial_ends_at,
       attendance_stats.todays_attendance,
       outstanding_stats.total_outstanding,
       outstanding_stats.members_count AS outstanding_members_count,
@@ -192,7 +207,37 @@ const getSummary = async (gymId) => {
     [gymId]
   );
 
-  return result.rows[0] ?? null;
+  const row = result.rows[0];
+  if (!row) return null;
+
+  const now = new Date();
+  const trialEndsAt = row.trial_ends_at ? new Date(row.trial_ends_at) : null;
+  const status = row.subscription_status || 'ACTIVE';
+
+  let isTrialActive = false;
+  let isTrialExpired = false;
+  let trialDaysRemaining = 0;
+
+  if (status === 'TRIAL') {
+    if (trialEndsAt && now < trialEndsAt) {
+      isTrialActive = true;
+      const diffMs = trialEndsAt.getTime() - now.getTime();
+      trialDaysRemaining = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+    } else {
+      isTrialExpired = true;
+      trialDaysRemaining = 0;
+    }
+  }
+
+  const hasClassFeature = !isTrialActive && !isTrialExpired && Boolean(row.has_classes_enabled);
+
+  return {
+    ...row,
+    isTrialActive,
+    isTrialExpired,
+    trialDaysRemaining,
+    hasClassFeature
+  };
 };
 
 const resolveDateRange = (period, startDateParam, endDateParam) => {

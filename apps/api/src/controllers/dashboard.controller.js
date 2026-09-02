@@ -13,6 +13,11 @@ const summary = async (request, response) => {
   response.status(200).json({
     success: true,
     data: {
+      isTrialActive: Boolean(dashboard.isTrialActive),
+      isTrialExpired: Boolean(dashboard.isTrialExpired),
+      trialDaysRemaining: Number(dashboard.trialDaysRemaining || 0),
+      subscriptionStatus: dashboard.subscription_status || 'ACTIVE',
+      subscriptionPlan: dashboard.subscription_plan || 'Growth',
       hasClassFeature,
       gymMemberships: {
         totalMembers: dashboard.total_members,

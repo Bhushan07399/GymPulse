@@ -73,10 +73,11 @@ const createGymWithOwner = async ({
     const gymQuery = `
       INSERT INTO gyms (
         name, owner_name, email, phone, address, city, state, country, pincode,
-        subscription_plan, subscription_start_date, subscription_end_date, is_active
+        subscription_plan, subscription_start_date, subscription_end_date, is_active,
+        trial_started_at, trial_ends_at, subscription_status
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_DATE, CURRENT_DATE + INTERVAL '1 year', TRUE)
-      RETURNING id, name, subscription_plan
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_DATE, CURRENT_DATE + INTERVAL '3 days', TRUE, NOW(), NOW() + INTERVAL '3 days', 'TRIAL')
+      RETURNING id, name, subscription_plan, subscription_status, trial_started_at, trial_ends_at
     `;
 
     const gymResult = await client.query(gymQuery, [

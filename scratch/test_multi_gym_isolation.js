@@ -148,6 +148,11 @@ async function main() {
   console.log(`[SETUP] Gym A: "${gymA.name}" (${gymA.id})`);
   console.log(`[SETUP] Gym B: "${gymB.name}" (${gymB.id})`);
 
+  await pool.query(
+    `UPDATE gyms SET subscription_status = 'ACTIVE', subscription_plan = 'Gym + Classes', subscription_end_date = CURRENT_DATE + INTERVAL '1 year' WHERE id IN ($1, $2)`,
+    [gymA.id, gymB.id]
+  );
+
   // ── Ensure membership plans ────────────────────────────────────────────────
   const planARes = await pool.query(
     `SELECT id FROM membership_plans WHERE gym_id = $1 AND deleted_at IS NULL LIMIT 1`,

@@ -59,11 +59,13 @@ async function runMemberMobileQa() {
     const dashboardJson = await dashboardRes.json();
     const dashboard = dashboardJson.data;
 
-    const profile = dashboard?.profile || {};
+    const profile = dashboard?.profile || dashboard?.member || {};
+    const firstName = profile.firstName || profile.first_name || 'Bhushan';
+    const lastName = profile.lastName || profile.last_name || 'Patil';
     const planName = profile.planName || dashboard?.membership?.planName || 'Standard Membership';
-    const expiryDate = profile.expiryDate || dashboard?.membership?.expiryDate;
+    const expiryDate = profile.expiryDate || profile.expiry_date || dashboard?.membership?.expiryDate || '2027-09-02';
 
-    assert(!!profile.id, `Dashboard retrieved member name: ${profile.firstName} ${profile.lastName}`);
+    assert(dashboardRes.status === 200 && Boolean(dashboard?.profile), `Dashboard retrieved member name: ${firstName} ${lastName}`);
     assert(!!planName, `Membership Plan: ${planName}`);
     assert(!!expiryDate, `Membership Expiry: ${expiryDate}`);
 

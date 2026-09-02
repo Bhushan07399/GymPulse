@@ -36,6 +36,8 @@ export const memberDashboardService = {
         totalCheckIns: typeof attendance.totalCheckins === 'number' ? attendance.totalCheckins : (typeof attendance.totalCheckIns === 'number' ? attendance.totalCheckIns : 0),
         lastCheckInDate: attendance.todayStatus?.checkInTime || attendance.lastCheckInDate || null,
       },
+      hasClassFeature: d.hasClassFeature !== false,
+      hasClassEntitlement: d.hasClassEntitlement !== false,
     };
   },
 };

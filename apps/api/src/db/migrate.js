@@ -23,6 +23,9 @@ const ensureSchema = async () => {
       ALTER TABLE gyms ADD COLUMN IF NOT EXISTS subscription_plan VARCHAR(50) NOT NULL DEFAULT 'Growth';
       ALTER TABLE gyms ADD COLUMN IF NOT EXISTS subscription_start_date DATE NOT NULL DEFAULT CURRENT_DATE;
       ALTER TABLE gyms ADD COLUMN IF NOT EXISTS subscription_end_date DATE NOT NULL DEFAULT (CURRENT_DATE + INTERVAL '1 year');
+      ALTER TABLE gyms ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ NULL;
+      ALTER TABLE gyms ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ NULL;
+      ALTER TABLE gyms ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE';
     `);
 
     // 4. Add outstanding payment columns to payments table & backfill paid_amount
