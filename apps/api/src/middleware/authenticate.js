@@ -3,7 +3,7 @@ const { env } = require('../config/env');
 const { logger } = require('../config/logger');
 const { AppError } = require('../utils/app-error');
 
-const authenticate = (request, _response, next) => {
+const authenticate = async (request, _response, next) => {
   const authorization = request.get('authorization');
   const [scheme, token] = authorization?.split(/\s+/) ?? [];
 
@@ -24,10 +24,18 @@ const authenticate = (request, _response, next) => {
       throw new Error('JWT payload is invalid.');
     }
 
+    let userEmail = payload.email;
+    if (!userEmail) {
+      const { pool } = require('../db/pool');
+      const staffRes = await pool.query('SELECT email FROM staff WHERE id = $1 LIMIT 1', [payload.sub]);
+      userEmail = staffRes.rows[0]?.email;
+    }
+
     request.user = {
       id: payload.sub,
       gymId: payload.gymId,
-      role: payload.role
+      role: payload.role,
+      email: userEmail
     };
 
     logger.debug({
@@ -35,6 +43,7 @@ const authenticate = (request, _response, next) => {
       userId: payload.sub,
       gymId: payload.gymId,
       role: payload.role,
+      email: userEmail,
       tokenPresent: true,
       tokenValid: true
     }, '[AUTH DEBUG] Authentication successful');

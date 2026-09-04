@@ -3,21 +3,13 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
-import { en, hi, mr, DEFAULT_LANGUAGE, LANGUAGE_STORAGE_KEY, SupportedLanguage } from '@i18n';
+import { en, DEFAULT_LANGUAGE, LANGUAGE_STORAGE_KEY, SupportedLanguage } from '@i18n';
 
 const resources = {
   en: { translation: en },
-  hi: { translation: hi },
-  mr: { translation: mr },
 };
 
 function getSavedLanguage(): SupportedLanguage {
-  if (typeof window !== 'undefined') {
-    const saved = localStorage.getItem(LANGUAGE_STORAGE_KEY) as SupportedLanguage | null;
-    if (saved && (saved === 'en' || saved === 'hi' || saved === 'mr')) {
-      return saved;
-    }
-  }
   return DEFAULT_LANGUAGE;
 }
 

@@ -18,7 +18,7 @@ const ensureSchema = async () => {
       CREATE UNIQUE INDEX IF NOT EXISTS uq_members_gym_member_id ON members (gym_id, member_id);
     `);
 
-    // 3. Add missing columns to gyms table if not exists
+    // 3. Add missing columns to gyms table if not exists & drop global email constraints for multi-gym support
     await pool.query(`
       ALTER TABLE gyms ADD COLUMN IF NOT EXISTS subscription_plan VARCHAR(50) NOT NULL DEFAULT 'Growth';
       ALTER TABLE gyms ADD COLUMN IF NOT EXISTS subscription_start_date DATE NOT NULL DEFAULT CURRENT_DATE;
@@ -26,6 +26,13 @@ const ensureSchema = async () => {
       ALTER TABLE gyms ADD COLUMN IF NOT EXISTS trial_started_at TIMESTAMPTZ NULL;
       ALTER TABLE gyms ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ NULL;
       ALTER TABLE gyms ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE';
+      ALTER TABLE gyms ADD COLUMN IF NOT EXISTS is_multi_gym BOOLEAN NOT NULL DEFAULT FALSE;
+      ALTER TABLE gyms ADD COLUMN IF NOT EXISTS max_locations INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE gyms ADD COLUMN IF NOT EXISTS billing_cycle VARCHAR(20) NOT NULL DEFAULT 'monthly';
+      UPDATE gyms SET is_multi_gym = TRUE, max_locations = 5, subscription_plan = 'Growth' WHERE LOWER(subscription_plan) LIKE '%multi%';
+      ALTER TABLE gyms DROP CONSTRAINT IF EXISTS gyms_email_key;
+      ALTER TABLE staff DROP CONSTRAINT IF EXISTS staff_email_key;
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_staff_gym_email ON staff (gym_id, LOWER(email));
     `);
 
     // 4. Add outstanding payment columns to payments table & backfill paid_amount

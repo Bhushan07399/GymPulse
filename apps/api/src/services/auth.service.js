@@ -14,7 +14,7 @@ const loginOwner = async ({ email, password }) => {
   }
 
   const token = jwt.sign(
-    { gymId: owner.gym_id, role: owner.role },
+    { gymId: owner.gym_id, role: owner.role, email: owner.email },
     env.jwtSecret,
     { subject: owner.id, expiresIn: '7d' }
   );
@@ -92,7 +92,7 @@ const registerGymAccount = async ({
   });
 
   const token = jwt.sign(
-    { gymId: gym.id, role: owner.role },
+    { gymId: gym.id, role: owner.role, email: owner.email },
     env.jwtSecret,
     { subject: owner.id, expiresIn: '7d' }
   );
@@ -111,4 +111,112 @@ const registerGymAccount = async ({
   };
 };
 
-module.exports = { loginOwner, registerOwner, registerGymAccount };
+const getMyGymLocations = async (ownerEmail) => {
+  if (!ownerEmail) {
+    throw new AppError(401, 'Unauthorized: Owner context missing');
+  }
+  return await authRepository.getOwnerLocations(ownerEmail);
+};
+
+const switchGymLocation = async ({ ownerEmail, targetGymId }) => {
+  if (!ownerEmail || !targetGymId) {
+    throw new AppError(400, 'Target gymId is required.');
+  }
+
+  const staffOwner = await authRepository.findOwnerStaffForGym(ownerEmail, targetGymId);
+  if (!staffOwner) {
+    throw new AppError(403, 'Unauthorized: You do not have owner access to this gym location.');
+  }
+
+  const newToken = jwt.sign(
+    { gymId: staffOwner.gym_id, role: staffOwner.role, email: staffOwner.email },
+    env.jwtSecret,
+    { subject: staffOwner.id, expiresIn: '7d' }
+  );
+
+  return {
+    token: newToken,
+    owner: {
+      id: staffOwner.id,
+      gymId: staffOwner.gym_id,
+      firstName: staffOwner.first_name,
+      lastName: staffOwner.last_name,
+      email: staffOwner.email,
+      role: staffOwner.role
+    },
+    gym: {
+      id: staffOwner.gym_id,
+      name: staffOwner.gym_name,
+      subscriptionPlan: staffOwner.subscription_plan,
+      subscriptionStatus: staffOwner.subscription_status,
+      isMultiGym: Boolean(staffOwner.is_multi_gym),
+      maxLocations: Number(staffOwner.max_locations || 1),
+      billingCycle: staffOwner.billing_cycle || 'monthly'
+    }
+  };
+};
+
+const createNewGymLocation = async ({ ownerEmail, gymName, address, city, state, country, pincode, phone }) => {
+  if (!ownerEmail) {
+    throw new AppError(401, 'Unauthorized: Owner context missing');
+  }
+
+  if (!gymName || !gymName.trim()) {
+    throw new AppError(400, 'Gym location name is required.');
+  }
+
+  const locations = await authRepository.getOwnerLocations(ownerEmail);
+  const totalLocations = locations.length;
+
+  // Primary gym holds the active subscription configuration
+  const primaryGym = locations.find((loc) => loc.subscription_status === 'ACTIVE' && loc.is_multi_gym) || locations[0];
+  const isSubActive = primaryGym?.subscription_status === 'ACTIVE';
+  const isMultiGym = Boolean(isSubActive && (primaryGym?.is_multi_gym || String(primaryGym?.subscription_plan).toLowerCase().includes('multi')));
+  const maxAllowed = isMultiGym ? Number(primaryGym?.max_locations || 5) : 1;
+
+  if (!isMultiGym || maxAllowed <= 1) {
+    throw new AppError(
+      403,
+      'Multi-Gym subscription required to manage multiple gym locations.'
+    );
+  }
+
+  if (totalLocations >= maxAllowed) {
+    throw new AppError(
+      403,
+      `Maximum location limit (${maxAllowed} locations) reached for your Multi-Gym plan.`
+    );
+  }
+
+  const { gym, owner } = await authRepository.addGymLocationWithOwner({
+    ownerEmail,
+    gymName,
+    address,
+    city,
+    state,
+    country,
+    pincode,
+    phone
+  });
+
+  const newToken = jwt.sign(
+    { gymId: gym.id, role: owner.role, email: owner.email },
+    env.jwtSecret,
+    { subject: owner.id, expiresIn: '7d' }
+  );
+
+  return {
+    token: newToken,
+    gym,
+    owner
+  };
+};
+
+module.exports = {
+  loginOwner,
+  registerOwner,
+  registerGymAccount,
+  getMyGymLocations,
+  switchGymLocation,
+  createNewGymLocation
+};

@@ -12,43 +12,33 @@ import { KpiCard } from '../components/ui/KpiCard';
 import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorState';
 import { Card } from '../components/ui/Card';
-import { LanguageSelectorModal } from '../components/LanguageSelectorModal';
 
 interface OwnerDashboardScreenProps {
   navigation: any;
 }
 
 export const OwnerDashboardScreen = ({ navigation }: OwnerDashboardScreenProps) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { user, gym, logout } = useAuth();
-  const [langModalVisible, setLangModalVisible] = useState(false);
 
   const { data, isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['dashboardSummary'],
     queryFn: () => dashboardService.getSummary(),
   });
 
-  const getLangLabel = () => {
-    const code = i18n.language || 'en';
-    if (code === 'hi') return 'हिंदी';
-    if (code === 'mr') return 'मराठी';
-    return 'EN';
-  };
-
   return (
-    <ScreenContainer scrollable refreshing={isRefetching} onRefresh={refetch}>
+    <ScreenContainer
+      scrollable
+      refreshing={isRefetching}
+      onRefresh={refetch}
+    >
       <Header
         title={gym?.name || 'GymPulse Fitness'}
         subtitle={`Logged in as ${user?.firstName || 'Owner'} (${user?.role || 'owner'})`}
         rightElement={
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <TouchableOpacity style={styles.langHeaderBtn} onPress={() => setLangModalVisible(true)} activeOpacity={0.7}>
-              <Text style={styles.langHeaderBtnText}>🌐 {getLangLabel()}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.7}>
-              <Text style={styles.logoutText}>{t('common.logout', 'Logout')}</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.7}>
+            <Text style={styles.logoutText}>{t('common.logout', 'Logout')}</Text>
+          </TouchableOpacity>
         }
       />
 
@@ -152,10 +142,6 @@ export const OwnerDashboardScreen = ({ navigation }: OwnerDashboardScreenProps) 
         </>
       )}
 
-      <LanguageSelectorModal
-        visible={langModalVisible}
-        onClose={() => setLangModalVisible(false)}
-      />
     </ScreenContainer>
   );
 };

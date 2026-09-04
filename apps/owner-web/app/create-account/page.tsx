@@ -5,13 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { ArrowRight, Check, CheckCircle2, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import { apiClient, AUTH_TOKEN_KEY } from "@/src/lib/api-client";
 import { AUTH_ROLE_KEY } from "@/src/lib/subscription-state";
 
 export default function CreateAccountPage() {
   const router = useRouter();
-  const [selectedPlan, setSelectedPlan] = useState<"Basic" | "Growth" | "Pro">("Growth");
   const [form, setForm] = useState({
     gymName: "",
     firstName: "",
@@ -61,7 +60,6 @@ export default function CreateAccountPage() {
       city: form.city,
       state: form.state,
       pincode: form.pincode,
-      subscriptionPlan: selectedPlan,
       password: form.password,
     });
   };
@@ -94,64 +92,28 @@ export default function CreateAccountPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6 text-xs">
-            {/* Step 1: Select Subscription Plan */}
-            <div className="space-y-3">
-              <h2 className="font-extrabold text-sm text-slate-900 uppercase tracking-wider text-slate-400">
-                1. Select Subscription Plan
-              </h2>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                {/* BASIC PLAN */}
-                <div
-                  onClick={() => setSelectedPlan("Basic")}
-                  className={`cursor-pointer rounded-2xl border p-4 transition-all ${
-                    selectedPlan === "Basic"
-                      ? "border-slate-900 bg-slate-900 text-white ring-2 ring-slate-900 shadow-lg"
-                      : "border-slate-200 bg-white text-slate-900 hover:border-slate-300"
-                  }`}
-                >
-                  <span className="font-extrabold text-sm block">BASIC</span>
-                  <span className="text-lg font-black mt-1 block">₹499 <span className="text-xs font-medium opacity-80">/mo</span></span>
-                  <p className="text-[11px] mt-2 opacity-80">Core gym management, members, manual payments & attendance.</p>
-                </div>
-
-                {/* GROWTH PLAN (Recommended) */}
-                <div
-                  onClick={() => setSelectedPlan("Growth")}
-                  className={`relative cursor-pointer rounded-2xl border p-4 transition-all ${
-                    selectedPlan === "Growth"
-                      ? "border-blue-600 bg-blue-600 text-white ring-2 ring-blue-600 shadow-lg"
-                      : "border-slate-200 bg-white text-slate-900 hover:border-slate-300"
-                  }`}
-                >
-                  <span className="absolute -top-2.5 right-3 rounded-full bg-amber-400 px-2 py-0.5 font-black text-[9px] text-slate-950 uppercase shadow">
-                    POPULAR
-                  </span>
-                  <span className="font-extrabold text-sm block">GROWTH</span>
-                  <span className="text-lg font-black mt-1 block">₹999 <span className="text-xs font-medium opacity-80">/mo</span></span>
-                  <p className="text-[11px] mt-2 opacity-80">Includes QR attendance, Live crowd, Body measurements & Progress charts.</p>
-                </div>
-
-                {/* PRO PLAN */}
-                <div
-                  onClick={() => setSelectedPlan("Pro")}
-                  className={`cursor-pointer rounded-2xl border p-4 transition-all ${
-                    selectedPlan === "Pro"
-                      ? "border-slate-900 bg-slate-900 text-white ring-2 ring-slate-900 shadow-lg"
-                      : "border-slate-200 bg-white text-slate-900 hover:border-slate-300"
-                  }`}
-                >
-                  <span className="font-extrabold text-sm block">PRO</span>
-                  <span className="text-lg font-black mt-1 block">₹1,499 <span className="text-xs font-medium opacity-80">/mo</span></span>
-                  <p className="text-[11px] mt-2 opacity-80">Includes WhatsApp automation, expiry alerts & advanced analytics.</p>
-                </div>
+            {/* Informational Trial Card */}
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-5 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="grid size-6 place-items-center rounded-lg bg-amber-500 text-[10px] font-black text-white shadow-sm">
+                  3D
+                </span>
+                <span className="font-extrabold text-xs tracking-wider text-amber-950 uppercase">
+                  3-DAY FREE TRIAL
+                </span>
               </div>
+              <p className="text-xs font-bold text-amber-900">
+                Start managing your gym with Growth features. No payment required.
+              </p>
+              <p className="text-[11px] font-medium text-amber-800/90 leading-relaxed">
+                After your trial, choose Growth, Pro, or Gym + Classes from Subscription.
+              </p>
             </div>
 
-            {/* Step 2: Gym & Owner Details */}
-            <div className="space-y-4 border-t border-slate-100 pt-5">
+            {/* Gym & Owner Details */}
+            <div className="space-y-4 pt-2">
               <h2 className="font-extrabold text-sm text-slate-900 uppercase tracking-wider text-slate-400">
-                2. Gym & Owner Information
+                Gym & Owner Information
               </h2>
 
               <div>
@@ -283,7 +245,7 @@ export default function CreateAccountPage() {
               disabled={createMutation.isPending}
               className="w-full flex items-center justify-center gap-2 rounded-xl bg-slate-900 py-4 font-extrabold text-sm text-white hover:bg-slate-800 transition-colors shadow-lg disabled:opacity-50"
             >
-              {createMutation.isPending ? "Creating Gym Workspace..." : `Create Gym Workspace (${selectedPlan} Plan)`}
+              {createMutation.isPending ? "Creating Gym Workspace..." : "Create Gym Workspace"}
               <ArrowRight className="h-4 w-4" />
             </button>
           </form>

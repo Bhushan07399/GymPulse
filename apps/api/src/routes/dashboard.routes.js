@@ -22,4 +22,11 @@ dashboardRouter.get(
   asyncHandler(dashboardController.analytics)
 );
 
+dashboardRouter.get(
+  '/consolidated',
+  authenticate,
+  authorize('Owner'),
+  asyncHandler(dashboardController.consolidated)
+);
+
 module.exports = { dashboardRouter };

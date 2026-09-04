@@ -2,7 +2,20 @@ import { apiClient } from "@/src/lib/api-client";
 import type { ApiResponse } from "@/src/types/api";
 
 export type DashboardSummary = {
+  isTrialActive?: boolean;
+  isTrialExpired?: boolean;
+  trialDaysRemaining?: number;
+  subscriptionDaysRemaining?: number;
+  subscriptionStatus?: string;
+  subscriptionPlan?: string;
+  subscriptionStartDate?: string | null;
+  subscriptionEndDate?: string | null;
+  trialStartedAt?: string | null;
+  trialEndsAt?: string | null;
   hasClassFeature?: boolean;
+  isMultiGym?: boolean;
+  maxLocations?: number;
+  billingCycle?: string;
   gymMemberships?: {
     totalMembers: number;
     activeMembers: number;

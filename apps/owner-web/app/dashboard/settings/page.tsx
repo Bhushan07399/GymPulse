@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import {
@@ -34,11 +35,11 @@ import {
   type WeeklyOperatingHours,
   type OperatingDaySchedule,
 } from "@/src/services/gym-settings.service";
-import { useTranslation } from "react-i18next";
-import { changeLanguage } from "@/src/lib/i18n";
-import { SUPPORTED_LANGUAGES, SupportedLanguage } from "@i18n";
+import { getDashboardSummary } from "@/src/services/dashboard.service";
+import { getEntitlements } from "@/src/lib/entitlements";
+import { getMyGymLocations, switchGymLocation, type GymLocation } from "@/src/services/gym-locations.service";
 
-type ActiveTab = "profile" | "branding" | "social" | "hours" | "business" | "legal";
+type ActiveTab = "profile" | "subscription" | "locations" | "branding" | "social" | "hours" | "business" | "legal";
 
 const inputStyle =
   "mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 placeholder:text-slate-400";
@@ -55,8 +56,6 @@ const DAYS_OF_WEEK: Array<{ key: keyof WeeklyOperatingHours; label: string }> = 
 ];
 
 export default function GymSettingsPage() {
-  const { t, i18n } = useTranslation();
-  const currentLang = (i18n.language || "en") as SupportedLanguage;
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<ActiveTab>("profile");
 
@@ -68,6 +67,27 @@ export default function GymSettingsPage() {
   const settingsQuery = useQuery({
     queryKey: ["gym-settings"],
     queryFn: getGymSettings,
+  });
+
+  const summaryQuery = useQuery({
+    queryKey: ["dashboard-summary"],
+    queryFn: getDashboardSummary,
+  });
+
+  const entitlements = getEntitlements(summaryQuery.data);
+
+  const locationsQuery = useQuery<GymLocation[]>({
+    queryKey: ["myGymLocations"],
+    queryFn: getMyGymLocations,
+    enabled: Boolean(entitlements.hasMultiGym),
+  });
+
+  const switchMutation = useMutation({
+    mutationFn: switchGymLocation,
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      window.location.reload();
+    },
   });
 
   const [profileForm, setProfileForm] = useState<GymProfile | null>(null);
@@ -231,12 +251,16 @@ export default function GymSettingsPage() {
       <div className="flex overflow-x-auto gap-2 border-b border-slate-200 pb-2 no-scrollbar">
         {[
           { id: "profile", label: "Gym Profile", icon: Building2 },
+          { id: "subscription", label: "Subscription", icon: ShieldCheck },
+          { id: "locations", label: "Multi-Gym Locations", icon: MapPin },
           { id: "branding", label: "Branding & Media", icon: ImageIcon },
           { id: "social", label: "Contact & Social", icon: Share2 },
           { id: "hours", label: "Operating Hours", icon: Clock },
           { id: "business", label: "Business & Receipt", icon: Receipt },
           { id: "legal", label: "Legal & Policies", icon: FileText },
-        ].map((tab) => {
+        ]
+          .filter((tab) => tab.id !== "locations" || entitlements.hasMultiGym)
+          .map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
@@ -259,52 +283,6 @@ export default function GymSettingsPage() {
       {/* TAB 1: GYM PROFILE */}
       {activeTab === "profile" && (
         <div className="space-y-6">
-          {/* INTERFACE LANGUAGE PREFERENCE CARD */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
-                  <Globe className="h-5 w-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-extrabold text-slate-900">
-                    {t("language.selectLanguage", "Interface Language")}
-                  </h2>
-                  <p className="text-xs font-medium text-slate-500">
-                    {t("language.chooseYourLanguage", "Select your preferred language for the GymPulse web dashboard")}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3 pt-1">
-              {SUPPORTED_LANGUAGES.map((lang) => {
-                const isSelected = currentLang === lang.code;
-                return (
-                  <button
-                    key={lang.code}
-                    type="button"
-                    onClick={() => changeLanguage(lang.code)}
-                    className={`flex items-center justify-between rounded-xl p-4 border text-left transition-all ${
-                      isSelected
-                        ? "border-blue-600 bg-blue-50/50 text-blue-900 ring-2 ring-blue-600/20"
-                        : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
-                    }`}
-                  >
-                    <div>
-                      <div className="font-bold text-sm text-slate-900">{lang.nativeLabel}</div>
-                      <div className="text-xs text-slate-500 font-medium">{lang.label}</div>
-                    </div>
-                    {isSelected && (
-                      <div className="h-5 w-5 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
-                        ✓
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
 
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
             <div className="border-b border-slate-100 pb-4">
@@ -475,7 +453,243 @@ export default function GymSettingsPage() {
         </div>
       )}
 
-      {/* TAB 2: BRANDING & MEDIA */}
+      {/* TAB: SUBSCRIPTION */}
+      {activeTab === "subscription" && (
+        <div className="space-y-6">
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-extrabold text-slate-900">
+                    Gym Subscription & Plan Entitlement
+                  </h2>
+                  <p className="text-xs font-medium text-slate-500">
+                    View active plan tier, remaining duration, trial dates, and feature entitlement
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href="/subscription"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white shadow-md hover:bg-slate-800 transition-colors"
+              >
+                {summaryQuery.data?.isTrialActive || summaryQuery.data?.isTrialExpired || summaryQuery.data?.subscriptionStatus === "EXPIRED"
+                  ? "Choose Subscription Plan"
+                  : "Manage Subscription"}
+              </Link>
+            </div>
+
+            {/* DYNAMIC SUBSCRIPTION DETAILS */}
+            {summaryQuery.data?.isTrialActive && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-amber-500 px-2.5 py-0.5 text-xs font-black text-white shadow-sm">
+                      FREE TRIAL ACTIVE
+                    </span>
+                    <span className="text-xs font-extrabold text-amber-950">
+                      {summaryQuery.data?.trialDaysRemaining === 1 ? "Ends Today" : `${summaryQuery.data?.trialDaysRemaining || 0} days remaining`}
+                    </span>
+                  </div>
+                  <span className="text-xs font-bold text-amber-800">
+                    Growth Plan (Trial Access)
+                  </span>
+                </div>
+
+                <p className="text-xs font-semibold text-amber-900 leading-relaxed">
+                  Your 3-day free trial gives you full access to Growth Plan features (Gym Dashboard, Member Directory, Attendance, Payments, Receipts, and Reports). Pro features and Group Classes are locked during trial.
+                </p>
+
+                <div className="grid grid-cols-2 gap-4 border-t border-amber-200/60 pt-4 text-xs font-medium text-amber-950">
+                  <div>
+                    <span className="text-[11px] font-bold text-amber-800 uppercase block">Trial Started</span>
+                    <span>{summaryQuery.data?.trialStartedAt ? new Date(summaryQuery.data.trialStartedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "N/A"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-amber-800 uppercase block">Trial Ends</span>
+                    <span>{summaryQuery.data?.trialEndsAt ? new Date(summaryQuery.data.trialEndsAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "N/A"}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!summaryQuery.data?.isTrialActive && !summaryQuery.data?.isTrialExpired && summaryQuery.data?.subscriptionStatus === "ACTIVE" && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-black text-white shadow-sm">
+                      ACTIVE SUBSCRIPTION
+                    </span>
+                    <span className="text-xs font-extrabold text-emerald-950">
+                      {summaryQuery.data?.subscriptionDaysRemaining ? `${summaryQuery.data.subscriptionDaysRemaining} days remaining` : "Active"}
+                    </span>
+                  </div>
+                  <span className="text-xs font-black text-emerald-900">
+                    {summaryQuery.data?.subscriptionPlan || "Growth"} Plan
+                    {summaryQuery.data?.isMultiGym ? ` · Multi-Gym (${summaryQuery.data?.maxLocations || 1} Locations)` : " · Single Gym"}
+                  </span>
+                </div>
+
+                <p className="text-xs font-semibold text-emerald-900 leading-relaxed">
+                  {summaryQuery.data?.subscriptionPlan === "Gym + Classes"
+                    ? "Full Access Tier: Includes all Growth & Pro features plus Group Classes, Schedule Management, and Class Booking."
+                    : summaryQuery.data?.subscriptionPlan === "Pro"
+                    ? "Pro Access Tier: Includes all Growth features plus Staff Management, WhatsApp Automation, and Advanced Analytics."
+                    : "Growth Access Tier: Includes Gym Dashboard, Member Management, Membership Plans, Attendance, Dues Tracking, Basic Reports, Owner Mobile & Member Mobile apps."}
+                  {summaryQuery.data?.isMultiGym && (
+                    <span className="block mt-1 text-emerald-800">
+                      Multi-Gym Enabled: You can manage up to {summaryQuery.data?.maxLocations || 1} locations under this plan.
+                    </span>
+                  )}
+                </p>
+
+                <div className="grid grid-cols-2 gap-4 border-t border-emerald-200/60 pt-4 text-xs font-medium text-emerald-950 sm:grid-cols-4">
+                  <div>
+                    <span className="text-[11px] font-bold text-emerald-800 uppercase block">Base Tier</span>
+                    <span>{summaryQuery.data?.subscriptionPlan || "Growth"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-emerald-800 uppercase block">Scale</span>
+                    <span>{summaryQuery.data?.isMultiGym ? `Multi-Gym (${summaryQuery.data?.maxLocations || 1} Loc)` : "Single Gym"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-emerald-800 uppercase block">Subscription Start</span>
+                    <span>{summaryQuery.data?.subscriptionStartDate ? new Date(summaryQuery.data.subscriptionStartDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "N/A"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-emerald-800 uppercase block">Renewal Date</span>
+                    <span>{summaryQuery.data?.subscriptionEndDate ? new Date(summaryQuery.data.subscriptionEndDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "N/A"}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {(summaryQuery.data?.isTrialExpired || summaryQuery.data?.subscriptionStatus === "EXPIRED") && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50/70 p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center rounded-full bg-rose-600 px-2.5 py-0.5 text-xs font-black text-white shadow-sm">
+                    SUBSCRIPTION EXPIRED
+                  </span>
+                  <span className="text-xs font-extrabold text-rose-900">
+                    Access Locked
+                  </span>
+                </div>
+
+                <p className="text-xs font-semibold text-rose-900 leading-relaxed">
+                  {summaryQuery.data?.isTrialExpired
+                    ? "Your 3-day free trial has expired. Choose a subscription plan (Growth, Pro, or Gym + Classes) to restore full access to your gym dashboard features."
+                    : "Your gym subscription has expired. Choose a subscription plan to restore full access to your dashboard."}
+                </p>
+
+                <div className="pt-2">
+                  <Link
+                    href="/subscription"
+                    className="inline-flex items-center justify-center rounded-xl bg-rose-900 px-4 py-2.5 text-xs font-bold text-white shadow transition hover:bg-rose-950"
+                  >
+                    Choose Subscription Plan
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {/* FEATURE COMPARISON MATRIX BRIEF */}
+            <div className="border-t border-slate-100 pt-5 space-y-3">
+              <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider text-slate-400">
+                GymPulse Customer Subscription Plans
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/50 space-y-1">
+                  <span className="font-extrabold text-xs text-slate-900 block">Growth</span>
+                  <span className="text-sm font-black text-slate-900 block">₹499 <span className="text-[10px] font-normal text-slate-500">/mo</span></span>
+                  <p className="text-[11px] text-slate-500 font-medium pt-1">Core gym, members, payments, attendance & mobile apps.</p>
+                </div>
+                <div className="rounded-xl border border-blue-200 p-4 bg-blue-50/30 space-y-1">
+                  <span className="font-extrabold text-xs text-blue-900 block">Pro</span>
+                  <span className="text-sm font-black text-blue-900 block">₹999 <span className="text-[10px] font-normal text-slate-500">/mo</span></span>
+                  <p className="text-[11px] text-slate-500 font-medium pt-1">Growth + Staff management, WhatsApp & Advanced analytics.</p>
+                </div>
+                <div className="rounded-xl border border-indigo-200 p-4 bg-indigo-50/30 space-y-1">
+                  <span className="font-extrabold text-xs text-indigo-900 block">Gym + Classes</span>
+                  <span className="text-sm font-black text-indigo-900 block">₹1,499 <span className="text-[10px] font-normal text-slate-500">/mo</span></span>
+                  <p className="text-[11px] text-slate-500 font-medium pt-1">Pro + Group classes, schedules & class booking entitlement.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* TAB: MULTI-GYM LOCATIONS */}
+      {activeTab === "locations" && entitlements.hasMultiGym && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-4 gap-3">
+            <div>
+              <h2 className="text-lg font-extrabold text-slate-900">Multi-Gym Network Locations</h2>
+              <p className="text-xs font-medium text-slate-500">
+                Manage branch locations across your gym network. Plan capacity: {locationsQuery.data?.length || 1} / {entitlements.maxLocations} locations used.
+              </p>
+            </div>
+            <Link
+              href="/subscription"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white shadow hover:bg-slate-800 transition shrink-0"
+            >
+              Configure Subscription
+            </Link>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {(locationsQuery.data || []).map((loc) => {
+              const isCurrent = loc.isCurrent;
+              return (
+                <div
+                  key={loc.id}
+                  className={`rounded-2xl border p-5 transition-all ${
+                    isCurrent ? "border-slate-900 bg-slate-50/50 shadow-sm" : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-black text-slate-900">{loc.name}</span>
+                        {isCurrent && (
+                          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[9px] font-black uppercase text-blue-700">
+                            Active Context
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500 font-medium flex items-center gap-1">
+                        <MapPin className="size-3 text-slate-400 inline" />
+                        {loc.city || "Branch"} {loc.address ? `· ${loc.address}` : ""}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+                    <span className="text-[11px] font-bold text-slate-600">
+                      Status: <span className="text-emerald-700">{loc.subscriptionStatus}</span>
+                    </span>
+                    {!isCurrent && (
+                      <button
+                        type="button"
+                        disabled={switchMutation.isPending}
+                        onClick={() => switchMutation.mutate(loc.id)}
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 transition shadow-xs"
+                      >
+                        Switch To This Gym
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* TAB: BRANDING & MEDIA */}
       {activeTab === "branding" && (
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-6">
           <div className="border-b border-slate-100 pb-4">

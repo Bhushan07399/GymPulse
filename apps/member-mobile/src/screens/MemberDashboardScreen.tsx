@@ -12,43 +12,33 @@ import { MembershipStatusCard } from '../components/member/MembershipStatusCard'
 import { Card } from '../components/ui/Card';
 import { LoadingState } from '../components/ui/LoadingState';
 import { ErrorState } from '../components/ui/ErrorState';
-import { LanguageSelectorModal } from '../components/LanguageSelectorModal';
 
 interface MemberDashboardScreenProps {
   navigation: any;
 }
 
 export const MemberDashboardScreen = ({ navigation }: MemberDashboardScreenProps) => {
-  const { t, i18n } = useTranslation();
-  const { logout } = useMemberAuth();
-  const [langModalVisible, setLangModalVisible] = useState(false);
+  const { t } = useTranslation();
+  const { member, logout } = useMemberAuth();
 
   const { data: summary, isLoading, error, refetch, isRefetching } = useQuery({
-    queryKey: ['memberDashboard'],
+    queryKey: ['memberDashboardSummary'],
     queryFn: () => memberDashboardService.getSummary(),
   });
 
-  const getLangLabel = () => {
-    const code = i18n.language || 'en';
-    if (code === 'hi') return 'हिंदी';
-    if (code === 'mr') return 'मराठी';
-    return 'EN';
-  };
-
   return (
-    <ScreenContainer onRefresh={refetch} refreshing={isRefetching}>
+    <ScreenContainer
+      scrollable
+      refreshing={isRefetching}
+      onRefresh={refetch}
+    >
       <Header
-        title={summary?.member?.gymName || t('nav.dashboard', 'My Gym')}
-        subtitle="GymPulse Member App"
+        title={member?.gymName || 'GymPulse Fitness'}
+        subtitle={`Member Pass #${member?.memberId || '...'}`}
         rightElement={
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <TouchableOpacity style={styles.langHeaderBtn} onPress={() => setLangModalVisible(true)} activeOpacity={0.7}>
-              <Text style={styles.langHeaderBtnText}>🌐 {getLangLabel()}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={logout} style={styles.logoutBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Text style={styles.logoutText}>{t('common.logout', 'Logout')} 🚪</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.7}>
+            <Text style={styles.logoutText}>{t('common.logout', 'Logout')}</Text>
+          </TouchableOpacity>
         }
       />
 
@@ -94,10 +84,6 @@ export const MemberDashboardScreen = ({ navigation }: MemberDashboardScreenProps
         </>
       ) : null}
 
-      <LanguageSelectorModal
-        visible={langModalVisible}
-        onClose={() => setLangModalVisible(false)}
-      />
     </ScreenContainer>
   );
 };

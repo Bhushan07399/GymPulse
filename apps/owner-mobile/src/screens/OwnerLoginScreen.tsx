@@ -6,16 +6,14 @@ import { Colors } from '../theme/colors';
 import { useAuth } from '../store/auth.context';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { LanguageSelectorModal } from '../components/LanguageSelectorModal';
 
 export const OwnerLoginScreen = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [langModalVisible, setLangModalVisible] = useState(false);
 
   const handleLogin = async () => {
     if (!email.trim()) {
@@ -39,28 +37,12 @@ export const OwnerLoginScreen = () => {
     }
   };
 
-  const getLangLabel = () => {
-    const code = i18n.language || 'en';
-    if (code === 'hi') return 'हिंदी';
-    if (code === 'mr') return 'मराठी';
-    return 'English';
-  };
-
   return (
     <KeyboardAvoidingView
       style={styles.keyboardView}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <View style={styles.topRightLang}>
-          <TouchableOpacity
-            style={styles.langBtn}
-            onPress={() => setLangModalVisible(true)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.langBtnText}>🌐 {getLangLabel()}</Text>
-          </TouchableOpacity>
-        </View>
 
         <View style={styles.headerBox}>
           <View style={styles.logoBadge}>
@@ -111,34 +93,12 @@ export const OwnerLoginScreen = () => {
         </View>
 
         <Text style={styles.footerText}>GymPulse SaaS • Production Management App</Text>
-
-        <LanguageSelectorModal
-          visible={langModalVisible}
-          onClose={() => setLangModalVisible(false)}
-        />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  topRightLang: {
-    alignItems: 'flex-end',
-    marginBottom: 10,
-  },
-  langBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  langBtnText: {
-    color: Colors.surface,
-    fontSize: 12,
-    fontWeight: '700',
-  },
   keyboardView: {
     flex: 1,
     backgroundColor: Colors.slate900,

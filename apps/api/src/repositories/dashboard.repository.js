@@ -48,8 +48,13 @@ const getSummary = async (gymId) => {
       SELECT 
         g.subscription_plan,
         g.subscription_status,
+        g.subscription_start_date,
+        g.subscription_end_date,
         g.trial_started_at,
         g.trial_ends_at,
+        g.is_multi_gym,
+        g.max_locations,
+        g.billing_cycle,
         (
           CASE 
             WHEN g.subscription_status = 'ACTIVE' AND LOWER(g.subscription_plan) LIKE '%class%' THEN TRUE 
@@ -180,8 +185,13 @@ const getSummary = async (gymId) => {
       COALESCE(gym_settings_stats.has_classes_enabled, TRUE) AS has_classes_enabled,
       gym_settings_stats.subscription_plan,
       gym_settings_stats.subscription_status,
+      gym_settings_stats.subscription_start_date,
+      gym_settings_stats.subscription_end_date,
       gym_settings_stats.trial_started_at,
       gym_settings_stats.trial_ends_at,
+      gym_settings_stats.is_multi_gym,
+      gym_settings_stats.max_locations,
+      gym_settings_stats.billing_cycle,
       attendance_stats.todays_attendance,
       outstanding_stats.total_outstanding,
       outstanding_stats.members_count AS outstanding_members_count,
@@ -212,11 +222,13 @@ const getSummary = async (gymId) => {
 
   const now = new Date();
   const trialEndsAt = row.trial_ends_at ? new Date(row.trial_ends_at) : null;
+  const subEndDate = row.subscription_end_date ? new Date(row.subscription_end_date) : null;
   const status = row.subscription_status || 'ACTIVE';
 
   let isTrialActive = false;
   let isTrialExpired = false;
   let trialDaysRemaining = 0;
+  let subscriptionDaysRemaining = 0;
 
   if (status === 'TRIAL') {
     if (trialEndsAt && now < trialEndsAt) {
@@ -227,16 +239,24 @@ const getSummary = async (gymId) => {
       isTrialExpired = true;
       trialDaysRemaining = 0;
     }
+  } else if (status === 'ACTIVE' && subEndDate) {
+    const diffMs = subEndDate.getTime() - now.getTime();
+    subscriptionDaysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
   }
 
-  const hasClassFeature = !isTrialActive && !isTrialExpired && Boolean(row.has_classes_enabled);
+  const planLower = String(row.subscription_plan || '').toLowerCase();
+  const hasClassFeature = status === 'ACTIVE' && planLower.includes('class') && Boolean(row.has_classes_enabled);
 
   return {
     ...row,
     isTrialActive,
     isTrialExpired,
     trialDaysRemaining,
-    hasClassFeature
+    subscriptionDaysRemaining,
+    hasClassFeature,
+    isMultiGym: Boolean(row.is_multi_gym),
+    maxLocations: Number(row.max_locations || 1),
+    billingCycle: row.billing_cycle || 'monthly'
   };
 };
 
@@ -414,4 +434,82 @@ const getAnalytics = async (gymId, { period, startDate, endDate }) => {
   };
 };
 
-module.exports = { getSummary, getAnalytics, resolveDateRange };
+const getConsolidatedSummary = async (ownerEmail) => {
+  const result = await pool.query(
+    `SELECT
+       g.id,
+       g.name,
+       g.city,
+       g.subscription_plan,
+       g.subscription_status,
+       g.is_multi_gym,
+       g.max_locations,
+       g.billing_cycle,
+       COALESCE(m.total_members, 0)::INTEGER AS total_members,
+       COALESCE(m.active_members, 0)::INTEGER AS active_members,
+       COALESCE(rev.total_revenue, 0)::NUMERIC AS total_revenue,
+       COALESCE(att.today_attendance, 0)::INTEGER AS today_attendance,
+       COALESCE(dues.total_outstanding, 0)::NUMERIC AS total_outstanding
+     FROM staff s
+     JOIN gyms g ON s.gym_id = g.id
+     LEFT JOIN LATERAL (
+       SELECT
+         COUNT(*)::INTEGER AS total_members,
+         COUNT(*) FILTER (WHERE is_active = TRUE AND expiry_date >= CURRENT_DATE)::INTEGER AS active_members
+       FROM members WHERE gym_id = g.id AND deleted_at IS NULL
+     ) m ON TRUE
+     LEFT JOIN LATERAL (
+       SELECT COALESCE(SUM(paid_amount), 0)::NUMERIC AS total_revenue
+       FROM payments WHERE gym_id = g.id AND deleted_at IS NULL
+     ) rev ON TRUE
+     LEFT JOIN LATERAL (
+       SELECT COUNT(DISTINCT member_id)::INTEGER AS today_attendance
+       FROM attendance WHERE gym_id = g.id AND attendance_date = CURRENT_DATE
+     ) att ON TRUE
+     LEFT JOIN LATERAL (
+       SELECT COALESCE(SUM(remaining_amount), 0)::NUMERIC AS total_outstanding
+       FROM payments WHERE gym_id = g.id AND deleted_at IS NULL AND remaining_amount > 0
+     ) dues ON TRUE
+     WHERE LOWER(s.email) = LOWER($1)
+       AND s.role = 'Owner'
+       AND s.is_active = TRUE
+       AND s.deleted_at IS NULL
+       AND g.deleted_at IS NULL
+     ORDER BY g.created_at ASC`,
+    [ownerEmail]
+  );
+
+  const locations = result.rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    city: r.city,
+    subscriptionPlan: r.subscription_plan,
+    subscriptionStatus: r.subscription_status,
+    isMultiGym: Boolean(r.is_multi_gym),
+    maxLocations: Number(r.max_locations || 1),
+    billingCycle: r.billing_cycle || 'monthly',
+    totalMembers: Number(r.total_members),
+    activeMembers: Number(r.active_members),
+    totalRevenue: Number(r.total_revenue),
+    todaysAttendance: Number(r.today_attendance),
+    totalOutstanding: Number(r.total_outstanding)
+  }));
+
+  const totalMembers = locations.reduce((sum, loc) => sum + loc.totalMembers, 0);
+  const activeMembers = locations.reduce((sum, loc) => sum + loc.activeMembers, 0);
+  const totalRevenue = locations.reduce((sum, loc) => sum + loc.totalRevenue, 0);
+  const todaysAttendance = locations.reduce((sum, loc) => sum + loc.todaysAttendance, 0);
+  const totalOutstanding = locations.reduce((sum, loc) => sum + loc.totalOutstanding, 0);
+
+  return {
+    totalLocations: locations.length,
+    totalMembers,
+    activeMembers,
+    totalRevenue,
+    todaysAttendance,
+    totalOutstanding,
+    locations
+  };
+};
+
+module.exports = { getSummary, getAnalytics, getConsolidatedSummary, resolveDateRange };

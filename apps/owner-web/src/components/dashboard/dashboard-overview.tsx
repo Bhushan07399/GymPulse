@@ -150,16 +150,16 @@ export function DashboardOverview() {
     totalOutstanding: data.totalOutstanding,
   };
 
-  const classData = data.classes;
+  const classData = hasClassFeature ? data.classes : null;
   const businessData = data.business ?? {
     gymMembershipRevenue: gymData.revenue,
-    classRevenue: classData?.revenue ?? 0,
-    totalBusinessRevenue: gymData.revenue + (classData?.revenue ?? 0),
+    classRevenue: hasClassFeature ? (classData?.revenue ?? 0) : 0,
+    totalBusinessRevenue: gymData.revenue + (hasClassFeature ? (classData?.revenue ?? 0) : 0),
   };
 
-  const totalBusinessRev = businessData.totalBusinessRevenue;
+  const totalBusinessRev = hasClassFeature ? businessData.totalBusinessRevenue : gymData.revenue;
   const gymRev = businessData.gymMembershipRevenue;
-  const classRev = businessData.classRevenue;
+  const classRev = hasClassFeature ? businessData.classRevenue : 0;
   const todayStr = new Intl.DateTimeFormat("en-IN", { weekday: "short", day: "numeric", month: "short" }).format(new Date());
 
   return (

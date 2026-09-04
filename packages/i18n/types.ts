@@ -5,12 +5,10 @@
  * Use with useTranslation() for type-safe t() calls.
  */
 
-export type SupportedLanguage = 'en' | 'hi' | 'mr';
+export type SupportedLanguage = 'en';
 
 export const SUPPORTED_LANGUAGES: { code: SupportedLanguage; label: string; nativeLabel: string }[] = [
   { code: 'en', label: 'English', nativeLabel: 'English' },
-  { code: 'hi', label: 'Hindi', nativeLabel: 'हिंदी' },
-  { code: 'mr', label: 'Marathi', nativeLabel: 'मराठी' },
 ];
 
 export const DEFAULT_LANGUAGE: SupportedLanguage = 'en';

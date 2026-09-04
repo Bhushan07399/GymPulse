@@ -6,16 +6,14 @@ import { Colors } from '../theme/colors';
 import { useMemberAuth } from '../store/auth.context';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
-import { LanguageSelectorModal } from '../components/LanguageSelectorModal';
 
 export const MemberLoginScreen = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { login } = useMemberAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [langModalVisible, setLangModalVisible] = useState(false);
 
   const handleLogin = async () => {
     if (!identifier.trim() || !password.trim()) {
@@ -35,28 +33,12 @@ export const MemberLoginScreen = () => {
     }
   };
 
-  const getLangLabel = () => {
-    const code = i18n.language || 'en';
-    if (code === 'hi') return 'हिंदी';
-    if (code === 'mr') return 'मराठी';
-    return 'English';
-  };
-
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <View style={styles.topRightLang}>
-          <TouchableOpacity
-            style={styles.langBtn}
-            onPress={() => setLangModalVisible(true)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.langBtnText}>🌐 {getLangLabel()}</Text>
-          </TouchableOpacity>
-        </View>
 
         <View style={styles.headerBox}>
           <View style={styles.badgeBox}>
@@ -102,11 +84,6 @@ export const MemberLoginScreen = () => {
             style={styles.loginBtn}
           />
         </View>
-
-        <LanguageSelectorModal
-          visible={langModalVisible}
-          onClose={() => setLangModalVisible(false)}
-        />
       </ScrollView>
     </KeyboardAvoidingView>
   );

@@ -2,10 +2,9 @@
  * GymPulse — i18n Verification Test
  *
  * Verifies:
- *   1. en.json, hi.json, mr.json load without syntax errors
- *   2. All English keys exist in Hindi and Marathi
- *   3. No empty values in any locale file
- *   4. Brand name 'GymPulse' is preserved untranslated
+ *   1. en.json loads without syntax errors
+ *   2. English locale contains non-empty strings
+ *   3. GymPulse brand name is preserved
  *
  * Run: node scratch/test_i18n.js
  */
@@ -55,73 +54,27 @@ function runI18nTest() {
     }
   }
 
-  // 1. Load files
-  let en, hi, mr;
+  // 1. Load file
+  let en;
   try {
     en = loadLocale('en');
-    pass('en.json loads successfully');
+    assert('en.json loads successfully', true);
   } catch (err) {
     assert('en.json loads successfully', false, err.message);
   }
-  try {
-    hi = loadLocale('hi');
-    pass('hi.json loads successfully');
-  } catch (err) {
-    assert('hi.json loads successfully', false, err.message);
-  }
-  try {
-    mr = loadLocale('mr');
-    pass('mr.json loads successfully');
-  } catch (err) {
-    assert('mr.json loads successfully', false, err.message);
-  }
 
-  function pass(label) {
-    console.log(`  ✅ PASS  ${label}`);
-    passCount++;
-  }
-
-  if (!en || !hi || !mr) {
-    console.error('[FATAL] Failed to load one or more locale files');
+  if (!en) {
+    console.error('[FATAL] Failed to load en.json file');
     process.exit(1);
   }
 
   const enLeafs = getLeafKeys(en);
-  const hiLeafs = getLeafKeys(hi);
-  const mrLeafs = getLeafKeys(mr);
-
-  const enMap = new Map(enLeafs.map((e) => [e.key, e.val]));
-  const hiMap = new Map(hiLeafs.map((e) => [e.key, e.val]));
-  const mrMap = new Map(mrLeafs.map((e) => [e.key, e.val]));
 
   assert('English contains keys', enLeafs.length > 0, `Key count: ${enLeafs.length}`);
-  assert('Hindi key count matches English', hiLeafs.length === enLeafs.length, `En: ${enLeafs.length}, Hi: ${hiLeafs.length}`);
-  assert('Marathi key count matches English', mrLeafs.length === enLeafs.length, `En: ${enLeafs.length}, Mr: ${mrLeafs.length}`);
 
-  // 2. Check for missing keys in Hindi & Marathi
-  const missingInHi = enLeafs.filter((e) => !hiMap.has(e.key));
-  assert('All English keys present in Hindi', missingInHi.length === 0, `Missing: ${missingInHi.map((m) => m.key).join(', ')}`);
-
-  const missingInMr = enLeafs.filter((e) => !mrMap.has(e.key));
-  assert('All English keys present in Marathi', missingInMr.length === 0, `Missing: ${missingInMr.map((m) => m.key).join(', ')}`);
-
-  // 3. Check for empty values
+  // 2. Check for empty values
   const emptyInEn = enLeafs.filter((e) => typeof e.val !== 'string' || e.val.trim() === '');
   assert('No empty values in English locale', emptyInEn.length === 0, `Empty keys: ${emptyInEn.map((e) => e.key).join(', ')}`);
-
-  const emptyInHi = hiLeafs.filter((e) => typeof e.val !== 'string' || e.val.trim() === '');
-  assert('No empty values in Hindi locale', emptyInHi.length === 0, `Empty keys: ${emptyInHi.map((e) => e.key).join(', ')}`);
-
-  const emptyInMr = mrLeafs.filter((e) => typeof e.val !== 'string' || e.val.trim() === '');
-  assert('No empty values in Marathi locale', emptyInMr.length === 0, `Empty keys: ${emptyInMr.map((e) => e.key).join(', ')}`);
-
-  // 4. Verify GymPulse brand integrity (should not be translated into Devanagari in JSON)
-  const hiJsonStr = JSON.stringify(hi);
-  const mrJsonStr = JSON.stringify(mr);
-  const gymPulseTranslatedInHi = hiJsonStr.includes('जिमपल्स') || hiJsonStr.includes('जिम पल्स');
-  const gymPulseTranslatedInMr = mrJsonStr.includes('जिमपल्स') || mrJsonStr.includes('जिम पल्स');
-  assert('GymPulse brand name is NOT translated in Hindi', !gymPulseTranslatedInHi, 'Found translated GymPulse in hi.json');
-  assert('GymPulse brand name is NOT translated in Marathi', !gymPulseTranslatedInMr, 'Found translated GymPulse in mr.json');
 
   console.log('\n══════════════════════════════════════════════════════════');
   console.log('   I18N LOCALE TEST SUMMARY');

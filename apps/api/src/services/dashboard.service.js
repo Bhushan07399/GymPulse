@@ -15,4 +15,11 @@ const getAnalytics = async (gymId, params = {}) => {
   return dashboardRepository.getAnalytics(gymId, params);
 };
 
-module.exports = { getSummary, getAnalytics };
+const getConsolidatedSummary = async (ownerEmail) => {
+  if (!ownerEmail) {
+    throw new AppError(401, 'Unauthorized: Owner context missing');
+  }
+  return await dashboardRepository.getConsolidatedSummary(ownerEmail);
+};
+
+module.exports = { getSummary, getAnalytics, getConsolidatedSummary };

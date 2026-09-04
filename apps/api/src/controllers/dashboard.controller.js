@@ -16,8 +16,13 @@ const summary = async (request, response) => {
       isTrialActive: Boolean(dashboard.isTrialActive),
       isTrialExpired: Boolean(dashboard.isTrialExpired),
       trialDaysRemaining: Number(dashboard.trialDaysRemaining || 0),
+      subscriptionDaysRemaining: Number(dashboard.subscriptionDaysRemaining || 0),
       subscriptionStatus: dashboard.subscription_status || 'ACTIVE',
       subscriptionPlan: dashboard.subscription_plan || 'Growth',
+      subscriptionStartDate: dashboard.subscription_start_date || null,
+      subscriptionEndDate: dashboard.subscription_end_date || null,
+      trialStartedAt: dashboard.trial_started_at || null,
+      trialEndsAt: dashboard.trial_ends_at || null,
       hasClassFeature,
       gymMemberships: {
         totalMembers: dashboard.total_members,
@@ -72,4 +77,12 @@ const analytics = async (request, response) => {
   });
 };
 
-module.exports = { summary, analytics };
+const consolidated = async (request, response) => {
+  const data = await dashboardService.getConsolidatedSummary(request.user.email);
+  response.status(200).json({
+    success: true,
+    data
+  });
+};
+
+module.exports = { summary, analytics, consolidated };

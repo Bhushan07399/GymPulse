@@ -1,21 +1,82 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import { Landmark, Users, CreditCard, Sparkles, TrendingUp, Zap, ChevronRight } from "lucide-react";
-import { getBusinessRevenueOverview, type BusinessRevenueOverview } from "@/src/services/class-plans.service";
+import { Landmark, Sparkles } from "lucide-react";
+import { getBusinessRevenueOverview } from "@/src/services/class-plans.service";
+import { getDashboardSummary } from "@/src/services/dashboard.service";
+import { getEntitlements } from "@/src/lib/entitlements";
 
 const money = (val: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(val);
 
 export function BusinessRevenueOverviewCard() {
+  const summaryQuery = useQuery({
+    queryKey: ["dashboard-summary"],
+    queryFn: getDashboardSummary,
+  });
+
+  const summaryData = summaryQuery.data as any;
+  const entitlements = getEntitlements(summaryData);
+  const hasClassFeature = entitlements.hasClass;
+
   const { data, isLoading } = useQuery({
     queryKey: ["business-revenue-overview"],
     queryFn: () => getBusinessRevenueOverview(),
     retry: false,
-    staleTime: 30000
+    staleTime: 30000,
+    enabled: hasClassFeature,
   });
+
+  if (summaryQuery.isLoading) {
+    return <div className="h-44 animate-pulse rounded-2xl border border-slate-200 bg-white" />;
+  }
+
+  // FOR NON-CLASS PLANS (Growth, Pro, Trial, Expired): RENDER GYM MEMBERSHIP REVENUE ONLY
+  if (!hasClassFeature) {
+    const gymRev = Number(summaryData?.gymMemberships?.revenue || summaryData?.totalRevenue || 0);
+    const gymDues = Number(summaryData?.totalOutstanding || 0);
+
+    return (
+      <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div>
+            <span className="rounded-full bg-emerald-50 px-3 py-1 font-extrabold text-[10px] text-emerald-700 border border-emerald-200 uppercase tracking-wider">
+              Gym Membership Financials
+            </span>
+            <h2 className="font-extrabold text-2xl text-slate-900 tracking-tight mt-1">Total Revenue Overview</h2>
+            <p className="text-xs text-slate-500 font-medium">Recorded gym membership collections and outstanding dues</p>
+          </div>
+
+          <div className="text-right">
+            <span className="text-xs text-slate-400 font-medium block">Total Revenue</span>
+            <span className="text-3xl font-extrabold text-slate-900 tracking-tight">{money(gymRev)}</span>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200/90 bg-slate-50/70 p-5 space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="font-bold text-slate-900 text-sm flex items-center gap-2">
+              <Landmark className="h-4 w-4 text-slate-700" />
+              Gym Membership Revenue
+            </span>
+            <span className="font-extrabold text-lg text-slate-900">{money(gymRev)}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-200/60">
+            <div>
+              <span className="text-slate-400 text-[10px]">Active Members</span>
+              <p className="font-bold text-slate-800">{summaryData?.activeMembers || 0} Members</p>
+            </div>
+            <div>
+              <span className="text-slate-400 text-[10px]">Outstanding Dues</span>
+              <p className="font-bold text-red-600">{money(gymDues)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading || !data) {
     return <div className="h-44 animate-pulse rounded-2xl border border-slate-200 bg-white" />;

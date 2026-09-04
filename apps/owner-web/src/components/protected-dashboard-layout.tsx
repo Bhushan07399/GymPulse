@@ -6,6 +6,7 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import "@/src/lib/i18n";
+import { GymSwitcher } from "@/src/components/gym-switcher";
 import {
   BadgePercent,
   BarChart3,
@@ -156,10 +157,18 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
     enabled: isAuthenticated && hasDashboardAccess,
   });
 
+  const summaryData = summaryQuery.data as any;
   const hasClassFeature = summaryQuery.data?.hasClassFeature !== false;
-  const trialActive = Boolean((summaryQuery.data as any)?.isTrialActive);
-  const trialExpired = Boolean((summaryQuery.data as any)?.isTrialExpired);
-  const trialDaysRemaining = Number((summaryQuery.data as any)?.trialDaysRemaining ?? 0);
+  const trialActive = Boolean(summaryData?.isTrialActive);
+  const trialExpired = Boolean(summaryData?.isTrialExpired);
+  const trialDaysRemaining = Number(summaryData?.trialDaysRemaining ?? 0);
+  const subscriptionStatus = String(summaryData?.subscriptionStatus || "ACTIVE");
+  const subscriptionPlan = String(summaryData?.subscriptionPlan || "Growth");
+  const subscriptionEndDate = summaryData?.subscriptionEndDate
+    ? new Date(summaryData.subscriptionEndDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+    : null;
+  const isExpired = Boolean(trialExpired || subscriptionStatus === "EXPIRED");
+  const isPaidActive = subscriptionStatus === "ACTIVE" && !trialActive && !isExpired;
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -338,6 +347,11 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
       <div className="lg:grid lg:grid-cols-[288px_minmax(0,1fr)]">
         <div className="hidden lg:block lg:h-screen lg:sticky lg:top-0">{sidebar}</div>
         <main className="px-4 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-10 pb-24 lg:pb-10">
+          {!isReceptionist && (
+            <div className="mb-6 flex items-center justify-between">
+              <GymSwitcher />
+            </div>
+          )}
           {trialActive && (
             <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-amber-300 bg-amber-50/90 p-4 text-amber-950 shadow-sm backdrop-blur">
               <div className="flex items-center gap-3">
@@ -362,15 +376,41 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
             </div>
           )}
 
-          {trialExpired && pathname !== "/subscription" && !pathname.startsWith("/dashboard/membership-plans") && (
+          {isPaidActive && (
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-emerald-300 bg-emerald-50/90 p-4 text-emerald-950 shadow-sm backdrop-blur">
+              <div className="flex items-center gap-3">
+                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-600 font-black text-xs text-white shadow-sm">
+                  ✓
+                </span>
+                <div>
+                  <p className="text-xs font-extrabold tracking-tight">
+                    {subscriptionPlan} Plan — Active
+                  </p>
+                  <p className="text-[11px] text-emerald-800 font-medium leading-normal">
+                    {subscriptionEndDate ? `Your subscription is active until ${subscriptionEndDate}.` : "Your subscription is active."}
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/subscription"
+                className="inline-flex items-center justify-center rounded-xl bg-emerald-900 px-4 py-2.5 text-xs font-bold text-white shadow transition hover:bg-emerald-950 shrink-0"
+              >
+                Manage Subscription
+              </Link>
+            </div>
+          )}
+
+          {isExpired && pathname !== "/subscription" && !pathname.startsWith("/dashboard/membership-plans") && (
             <div className="fixed inset-0 z-50 grid place-items-center bg-[#0F172A]/70 p-4 backdrop-blur-sm">
               <div role="dialog" aria-modal="true" className="w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-2xl border border-slate-200">
                 <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-rose-50 text-rose-600 font-bold text-xl">
                   ⌛
                 </span>
-                <h2 className="mt-4 text-xl font-extrabold tracking-tight text-slate-900">Your 3-Day Free Trial Has Expired</h2>
+                <h2 className="mt-4 text-xl font-extrabold tracking-tight text-slate-900">
+                  {trialExpired ? "Your 3-Day Free Trial Has Expired" : "Your Gym Subscription Has Expired"}
+                </h2>
                 <p className="mt-2 text-xs leading-5 text-slate-600 font-medium">
-                  Your trial period has ended. Select a customer plan (Growth, Pro, or Gym + Classes) to reactivate your gym dashboard.
+                  Select a customer plan (Growth, Pro, or Gym + Classes) to reactivate your gym dashboard.
                 </p>
                 <div className="mt-6 grid gap-3 sm:grid-cols-2">
                   <Link

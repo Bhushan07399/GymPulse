@@ -26,6 +26,7 @@ import {
   updateStaff,
   updateStaffStatus,
 } from "@/src/services/staff.service";
+import { PlanLockedState } from "@/src/components/common/plan-locked-state";
 import type { CreateStaffInput, StaffMember, UpdateStaffInput } from "@/src/types/staff";
 
 export default function StaffManagementPage() {
@@ -40,6 +41,12 @@ export default function StaffManagementPage() {
     queryKey: ["staff-list", search],
     queryFn: () => listStaff({ search }),
   });
+
+  const isLocked = (error as any)?.response?.data?.error?.code === "FEATURE_LOCKED" || (error as any)?.response?.status === 403;
+
+  if (isLocked) {
+    return <PlanLockedState featureName="Staff Management & Reception Roles" requiredPlan="Pro" actionText="Upgrade to Pro Plan" />;
+  }
 
   const staffList = data?.staff ?? [];
   const totalStaff = staffList.length;

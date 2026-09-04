@@ -213,11 +213,10 @@ export default function WhatsAppAutomationPage() {
     },
   });
 
-  // TESTING PHASE BYPASS: Disable UI feature lock during testing
-  const isLocked = false; // Original check: (settingsQuery.error as any)?.response?.data?.error?.code === "FEATURE_LOCKED";
+  const isLocked = (settingsQuery.error as any)?.response?.data?.error?.code === "FEATURE_LOCKED" || (settingsQuery.error as any)?.response?.status === 403;
 
   if (isLocked) {
-    return <PlanLockedState featureName="WhatsApp Automation & Messaging" requiredPlan="Pro" />;
+    return <PlanLockedState featureName="WhatsApp Automation & Messaging" requiredPlan="Pro" actionText="Upgrade to Pro Plan" />;
   }
 
   if (settingsQuery.isLoading || templatesQuery.isLoading) {
