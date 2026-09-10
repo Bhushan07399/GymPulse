@@ -1,5 +1,5 @@
 const { pool } = require('../db/pool');
-const { resolveCanonicalPlan } = require('../config/pricing');
+const { resolveCanonicalPlan, calculatePortfolioMetrics } = require('../config/pricing');
 
 // =============================================================================
 // 1. ADMIN USER MANAGEMENT
@@ -600,66 +600,63 @@ const listSubscriptionHistoryAdmin = async (gymId = null, limit = 50) => {
 // =============================================================================
 
 const getPlatformRevenueStats = async () => {
-  // Cash collected this month vs last month (strictly from gym_subscription_history)
-  const currentMonthRes = await pool.query(`
-    SELECT COALESCE(SUM(amount_paid), 0) AS total
+  // Cash collected strictly from gym_subscription_history where amount_paid > 0
+  const cashCheckRes = await pool.query(`
+    SELECT
+      COALESCE(SUM(amount_paid), 0) AS total_all_time,
+      COUNT(*) FILTER (WHERE amount_paid > 0) AS positive_payment_count,
+      COALESCE(SUM(amount_paid) FILTER (WHERE created_at >= date_trunc('month', CURRENT_DATE)), 0) AS current_month_cash,
+      COALESCE(SUM(amount_paid) FILTER (WHERE created_at >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month') AND created_at < date_trunc('month', CURRENT_DATE)), 0) AS last_month_cash
     FROM gym_subscription_history
-    WHERE created_at >= date_trunc('month', CURRENT_DATE)
   `);
-  const currentMonthCash = Number(currentMonthRes.rows[0]?.total || 0);
-
-  const lastMonthRes = await pool.query(`
-    SELECT COALESCE(SUM(amount_paid), 0) AS total
-    FROM gym_subscription_history
-    WHERE created_at >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month')
-      AND created_at < date_trunc('month', CURRENT_DATE)
-  `);
-  const lastMonthCash = Number(lastMonthRes.rows[0]?.total || 0);
+  const cashRow = cashCheckRes.rows[0];
+  const positivePaymentCount = Number(cashRow?.positive_payment_count || 0);
+  const currentMonthCash = Number(cashRow?.current_month_cash || 0);
+  const lastMonthCash = Number(cashRow?.last_month_cash || 0);
+  const hasRecordedCash = positivePaymentCount > 0;
 
   const growthPct = lastMonthCash > 0
     ? Math.round(((currentMonthCash - lastMonthCash) / lastMonthCash) * 1000) / 10
     : (currentMonthCash > 0 ? 100 : 0);
 
-  // Revenue by Plan strictly mapped to canonical plans (Growth, Pro, Gym + Classes)
-  const byPlanRes = await pool.query(`
-    SELECT
-      CASE
-        WHEN LOWER(plan) LIKE '%class%' OR LOWER(plan) = 'enterprise' THEN 'Gym + Classes'
-        WHEN LOWER(plan) LIKE '%pro%' THEN 'Pro'
-        ELSE 'Growth'
-      END AS plan,
-      COALESCE(SUM(amount_paid), 0) AS total,
-      COUNT(*) AS count
-    FROM gym_subscription_history
-    GROUP BY 1
-    ORDER BY total DESC
-  `);
-
-  // Revenue by Billing Cycle
-  const byCycleRes = await pool.query(`
-    SELECT billing_cycle, COALESCE(SUM(amount_paid), 0) AS total, COUNT(*) AS count
-    FROM gym_subscription_history
-    GROUP BY billing_cycle
-  `);
-
-  // All active gyms to compute MRR accurately
+  // All active gyms to compute canonical MRR, ARR, and exact reconciled breakdowns
   const activeGymsRes = await pool.query(`
-    SELECT subscription_plan, is_multi_gym, max_locations, billing_cycle
+    SELECT id, name, subscription_plan, is_multi_gym, max_locations, billing_cycle
     FROM gyms
     WHERE deleted_at IS NULL AND subscription_status = 'ACTIVE' AND is_active = TRUE
   `);
 
+  const portfolio = calculatePortfolioMetrics(activeGymsRes.rows);
+
   return {
-    currentMonthCash,
-    lastMonthCash,
+    hasRecordedCash,
+    currentMonthCash: hasRecordedCash ? currentMonthCash : null,
+    lastMonthCash: hasRecordedCash ? lastMonthCash : null,
     growthPct,
-    byPlan: byPlanRes.rows.map((r) => ({ plan: r.plan, total: Number(r.total), count: Number(r.count) })),
-    byCycle: byCycleRes.rows.map((r) => ({ cycle: r.billing_cycle, total: Number(r.total), count: Number(r.count) })),
+    mrr: portfolio.mrr,
+    arr: portfolio.arr,
+    byPlan: portfolio.byPlan,
+    byCycle: portfolio.byCycle,
     activeGyms: activeGymsRes.rows
   };
 };
 
 const getRevenueTrend = async (months = 12) => {
+  // Check if any positive recorded cash exists
+  const checkRes = await pool.query(`
+    SELECT COUNT(*) AS count
+    FROM gym_subscription_history
+    WHERE amount_paid > 0
+  `);
+  const hasRecordedHistory = Number(checkRes.rows[0]?.count || 0) > 0;
+
+  if (!hasRecordedHistory) {
+    return {
+      hasRecordedHistory: false,
+      trend: []
+    };
+  }
+
   const query = `
     SELECT
       to_char(date_trunc('month', created_at), 'YYYY-MM') AS month,
@@ -667,15 +664,19 @@ const getRevenueTrend = async (months = 12) => {
       COUNT(*) AS payment_count
     FROM gym_subscription_history
     WHERE created_at >= date_trunc('month', CURRENT_DATE - ($1 || ' months')::interval)
+      AND amount_paid > 0
     GROUP BY date_trunc('month', created_at)
     ORDER BY date_trunc('month', created_at) ASC
   `;
   const result = await pool.query(query, [months]);
-  return result.rows.map((r) => ({
-    month: r.month,
-    revenue: Number(r.revenue),
-    paymentCount: Number(r.payment_count)
-  }));
+  return {
+    hasRecordedHistory: true,
+    trend: result.rows.map((r) => ({
+      month: r.month,
+      revenue: Number(r.revenue),
+      paymentCount: Number(r.payment_count)
+    }))
+  };
 };
 
 // =============================================================================

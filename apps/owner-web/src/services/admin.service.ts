@@ -207,13 +207,29 @@ export interface SubscriptionHistoryItem {
 }
 
 export interface RevenueAnalyticsData {
-  cashCollectedThisMonth: number;
-  cashCollectedLastMonth: number;
+  cashCollectedThisMonth: number | null;
+  cashCollectedLastMonth: number | null;
+  hasRecordedCash?: boolean;
+  hasRecordedHistory?: boolean;
   growthPct: number;
   mrr: number;
   arr: number;
-  byPlan: Array<{ plan: string; total: number; count: number }>;
-  byCycle: Array<{ cycle: string; total: number; count: number }>;
+  byPlan: Array<{
+    plan: string;
+    total: number;
+    count: number;
+    subscribers?: number;
+    mrrContribution?: number;
+    percentage?: number;
+  }>;
+  byCycle: Array<{
+    cycle: string;
+    total: number;
+    count: number;
+    subscribers?: number;
+    mrrContribution?: number;
+    percentage?: number;
+  }>;
   trend: Array<{ month: string; revenue: number; paymentCount: number }>;
 }
 

@@ -108,11 +108,19 @@ export default function AdminRevenuePage() {
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Collected This Month</span>
             <DollarSign className="h-4 w-4 text-sky-400" />
           </div>
-          <div className="mt-3 text-3xl font-black tracking-tight text-white">
-            ₹{cashCollectedThisMonth.toLocaleString()}
+          <div className="mt-3 text-2xl font-black tracking-tight text-white">
+            {revenue?.hasRecordedCash && cashCollectedThisMonth !== null ? (
+              `₹${cashCollectedThisMonth.toLocaleString()}`
+            ) : (
+              <span className="text-lg text-slate-400 font-semibold">Not recorded</span>
+            )}
           </div>
           <div className="mt-1 text-[11px] text-slate-400">
-            {growthPct >= 0 ? `+${growthPct}% vs last month` : `${growthPct}% vs last month`}
+            {revenue?.hasRecordedCash && cashCollectedThisMonth !== null ? (
+              growthPct >= 0 ? `+${growthPct}% vs last month` : `${growthPct}% vs last month`
+            ) : (
+              "Gateway ledger pending"
+            )}
           </div>
         </div>
 
@@ -132,58 +140,100 @@ export default function AdminRevenuePage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Tier Breakdown */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 space-y-4">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-white">
-            Revenue by Subscription Tier
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-white">
+              Revenue by Subscription Tier
+            </h2>
+            <span className="text-[11px] text-slate-400">Normalized MRR contribution</span>
+          </div>
           <div className="overflow-hidden rounded-xl border border-slate-800">
             <table className="w-full text-left text-xs">
               <thead className="border-b border-slate-800 bg-slate-950/60 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 <tr>
                   <th className="px-4 py-3">Plan Tier</th>
                   <th className="px-4 py-3">Subscribers</th>
-                  <th className="px-4 py-3 text-right">Revenue Contribution</th>
+                  <th className="px-4 py-3">Share</th>
+                  <th className="px-4 py-3 text-right">MRR Contribution</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-medium text-slate-300">
-                {byPlan.map((p) => (
-                  <tr key={p.plan} className="hover:bg-slate-800/30">
-                    <td className="px-4 py-3 font-bold text-white">{p.plan}</td>
-                    <td className="px-4 py-3">{p.count} gyms</td>
-                    <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
-                      ₹{p.total.toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
+                {byPlan.map((p) => {
+                  const mrrVal = p.mrrContribution ?? p.total ?? 0;
+                  const subsVal = p.subscribers ?? p.count ?? 0;
+                  return (
+                    <tr key={p.plan} className="hover:bg-slate-800/30">
+                      <td className="px-4 py-3 font-bold text-white">{p.plan}</td>
+                      <td className="px-4 py-3">{subsVal} gyms</td>
+                      <td className="px-4 py-3 text-slate-400">{p.percentage ?? 0}%</td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
+                        ₹{mrrVal.toLocaleString()}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
+              <tfoot className="border-t border-slate-800 bg-slate-950/40 text-[11px] font-bold text-slate-200">
+                <tr>
+                  <td className="px-4 py-2.5">Total</td>
+                  <td className="px-4 py-2.5">
+                    {byPlan.reduce((acc, p) => acc + (p.subscribers ?? p.count ?? 0), 0)} gyms
+                  </td>
+                  <td className="px-4 py-2.5 text-slate-400">100%</td>
+                  <td className="px-4 py-2.5 text-right font-mono font-bold text-emerald-400">
+                    ₹{mrr.toLocaleString()}
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
 
         {/* Billing Cycle Breakdown */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 space-y-4">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-white">
-            Billing Frequency Distribution
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-white">
+              Billing Frequency Distribution
+            </h2>
+            <span className="text-[11px] text-slate-400">Normalized MRR equivalent</span>
+          </div>
           <div className="overflow-hidden rounded-xl border border-slate-800">
             <table className="w-full text-left text-xs">
               <thead className="border-b border-slate-800 bg-slate-950/60 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 <tr>
                   <th className="px-4 py-3">Frequency</th>
                   <th className="px-4 py-3">Subscribers</th>
-                  <th className="px-4 py-3 text-right">Revenue Equivalent</th>
+                  <th className="px-4 py-3">Share</th>
+                  <th className="px-4 py-3 text-right">MRR Equivalent</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-medium text-slate-300">
-                {byCycle.map((c) => (
-                  <tr key={c.cycle} className="hover:bg-slate-800/30">
-                    <td className="px-4 py-3 font-bold text-white">{c.cycle}</td>
-                    <td className="px-4 py-3">{c.count} gyms</td>
-                    <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
-                      ₹{c.total.toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
+                {byCycle.map((c) => {
+                  const mrrVal = c.mrrContribution ?? c.total ?? 0;
+                  const subsVal = c.subscribers ?? c.count ?? 0;
+                  return (
+                    <tr key={c.cycle} className="hover:bg-slate-800/30">
+                      <td className="px-4 py-3 font-bold text-white capitalize">{c.cycle}</td>
+                      <td className="px-4 py-3">{subsVal} gyms</td>
+                      <td className="px-4 py-3 text-slate-400">{c.percentage ?? 0}%</td>
+                      <td className="px-4 py-3 text-right font-mono font-bold text-emerald-400">
+                        ₹{mrrVal.toLocaleString()}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
+              <tfoot className="border-t border-slate-800 bg-slate-950/40 text-[11px] font-bold text-slate-200">
+                <tr>
+                  <td className="px-4 py-2.5">Total</td>
+                  <td className="px-4 py-2.5">
+                    {byCycle.reduce((acc, c) => acc + (c.subscribers ?? c.count ?? 0), 0)} gyms
+                  </td>
+                  <td className="px-4 py-2.5 text-slate-400">100%</td>
+                  <td className="px-4 py-2.5 text-right font-mono font-bold text-emerald-400">
+                    ₹{mrr.toLocaleString()}
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
@@ -206,8 +256,11 @@ export default function AdminRevenuePage() {
             <tbody className="divide-y divide-slate-800/60 font-medium text-slate-300">
               {trend.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-5 py-6 text-center text-slate-500">
-                    No historical monthly billing records captured yet.
+                  <td colSpan={3} className="px-5 py-8 text-center text-slate-500">
+                    <p className="font-medium text-slate-400">Payment gateway transaction ledger not yet active.</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Historical invoiced cash collections are unavailable until direct SaaS payment integration is enabled.
+                    </p>
                   </td>
                 </tr>
               ) : (

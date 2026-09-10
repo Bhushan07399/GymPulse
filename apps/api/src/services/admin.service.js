@@ -76,24 +76,8 @@ const getDashboardOverview = async () => {
 
   // 3. Platform Revenue & Normalized MRR / ARR
   const revStats = await adminRepository.getPlatformRevenueStats();
-
-  let totalMRR = 0;
-  for (const gym of revStats.activeGyms) {
-    const canonicalPlan = resolveCanonicalPlan(gym.subscription_plan);
-    const pricing = calculateSubscriptionPrice(
-      canonicalPlan,
-      gym.is_multi_gym,
-      gym.max_locations,
-      gym.billing_cycle
-    );
-    if (String(gym.billing_cycle).toLowerCase() === 'yearly') {
-      totalMRR += Math.round((pricing.yearlyPrice / 12) * 100) / 100;
-    } else {
-      totalMRR += pricing.monthlyPrice;
-    }
-  }
-  totalMRR = Math.round(totalMRR * 100) / 100;
-  const totalARR = Math.round(totalMRR * 12 * 100) / 100;
+  const totalMRR = revStats.mrr;
+  const totalARR = revStats.arr;
 
   // 4. WhatsApp monthly usage and estimated cost
   const currentMonthStr = new Date().toISOString().slice(0, 7);
@@ -410,35 +394,19 @@ const getSubscriptionHistory = (gymId, limit) => adminRepository.listSubscriptio
 
 const getRevenueAnalytics = async () => {
   const stats = await adminRepository.getPlatformRevenueStats();
-  const trend = await adminRepository.getRevenueTrend(12);
-
-  let mrr = 0;
-  for (const gym of stats.activeGyms) {
-    const canonicalPlan = resolveCanonicalPlan(gym.subscription_plan);
-    const pricing = calculateSubscriptionPrice(
-      canonicalPlan,
-      gym.is_multi_gym,
-      gym.max_locations,
-      gym.billing_cycle
-    );
-    if (String(gym.billing_cycle).toLowerCase() === 'yearly') {
-      mrr += Math.round((pricing.yearlyPrice / 12) * 100) / 100;
-    } else {
-      mrr += pricing.monthlyPrice;
-    }
-  }
-  mrr = Math.round(mrr * 100) / 100;
-  const arr = Math.round(mrr * 12 * 100) / 100;
+  const trendData = await adminRepository.getRevenueTrend(12);
 
   return {
     cashCollectedThisMonth: stats.currentMonthCash,
     cashCollectedLastMonth: stats.lastMonthCash,
+    hasRecordedCash: stats.hasRecordedCash,
+    hasRecordedHistory: trendData.hasRecordedHistory,
     growthPct: stats.growthPct,
-    mrr,
-    arr,
+    mrr: stats.mrr,
+    arr: stats.arr,
     byPlan: stats.byPlan,
     byCycle: stats.byCycle,
-    trend
+    trend: trendData.trend
   };
 };
 
