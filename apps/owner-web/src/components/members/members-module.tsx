@@ -18,6 +18,7 @@ import {
 import { listActiveMembershipPlans } from "@/src/services/membership-plans.service";
 import type { Member, MemberInput, MembershipPlan } from "@/src/types/member";
 import { getApiErrorMessage } from "@/src/utils/get-api-error-message";
+import { ConfirmationModal } from "@/src/components/ui/confirmation-modal";
 
 const memberSchema = z.object({
   membershipPlanId: z.string().uuid("Choose a membership plan."),
@@ -342,6 +343,8 @@ export function MembersModule() {
   const [page, setPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+  const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
+  const [memberToMarkLeft, setMemberToMarkLeft] = useState<Member | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -386,6 +389,7 @@ export function MembersModule() {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["payments-outstanding"] });
       toast.success("Member deleted successfully.");
+      setMemberToDelete(null);
     },
     onError: (err) => toast.error(getApiErrorMessage(err)),
   });
@@ -398,6 +402,7 @@ export function MembersModule() {
       queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
       toast.success("Member marked as Left/Cancelled.");
+      setMemberToMarkLeft(null);
     },
     onError: (err) => toast.error(getApiErrorMessage(err)),
   });
@@ -536,23 +541,14 @@ export function MembersModule() {
                           <Pencil className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => {
-                            const dateStr = prompt(`Mark ${m.firstName} ${m.lastName} as Left/Cancelled. Enter Left Date (YYYY-MM-DD):`, new Date().toISOString().slice(0, 10));
-                            if (dateStr) {
-                              leaveMutation.mutate({ id: m.id, leftDate: dateStr });
-                            }
-                          }}
+                          onClick={() => setMemberToMarkLeft(m)}
                           className="p-1 text-amber-600 hover:text-amber-800"
                           title="Mark member as Left/Cancelled"
                         >
                           <UserMinus className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => {
-                            if (confirm(`Are you sure you want to delete member ${m.firstName} ${m.lastName} (${m.memberId})?`)) {
-                              deleteMutation.mutate(m.id);
-                            }
-                          }}
+                          onClick={() => setMemberToDelete(m)}
                           className="p-1 text-slate-400 hover:text-red-600"
                           title="Delete member"
                         >
@@ -614,6 +610,39 @@ export function MembersModule() {
           />
         )}
       </AnimatePresence>
+
+      {/* Delete Member Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={Boolean(memberToDelete)}
+        title="Delete Member"
+        message={`Are you sure you want to delete ${memberToDelete?.firstName} ${memberToDelete?.lastName} (${memberToDelete?.memberId})? This action cannot be undone.`}
+        confirmLabel="Delete Member"
+        isDestructive={true}
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (memberToDelete) deleteMutation.mutate(memberToDelete.id);
+        }}
+        onCancel={() => setMemberToDelete(null)}
+      />
+
+      {/* Mark Member Left Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={Boolean(memberToMarkLeft)}
+        title="Mark Member as Left"
+        message={`Mark ${memberToMarkLeft?.firstName} ${memberToMarkLeft?.lastName} as Left/Cancelled today?`}
+        confirmLabel="Mark as Left"
+        isDestructive={false}
+        isLoading={leaveMutation.isPending}
+        onConfirm={() => {
+          if (memberToMarkLeft) {
+            leaveMutation.mutate({
+              id: memberToMarkLeft.id,
+              leftDate: new Date().toISOString().slice(0, 10),
+            });
+          }
+        }}
+        onCancel={() => setMemberToMarkLeft(null)}
+      />
     </div>
   );
 }

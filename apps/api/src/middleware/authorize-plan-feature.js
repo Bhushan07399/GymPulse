@@ -216,11 +216,60 @@ const ensureGymSubscriptionActive = async (req, res, next) => {
   }
 };
 
+const isGymFeatureEntitled = (gym, featureName) => {
+  if (!gym) return false;
+  const now = new Date();
+  const status = String(gym.subscription_status || 'ACTIVE').toUpperCase();
+  const trialEndsAt = gym.trial_ends_at ? new Date(gym.trial_ends_at) : null;
+  const subEndDate = gym.subscription_end_date ? new Date(gym.subscription_end_date) : null;
+
+  let isTrialActive = false;
+  let isTrialExpired = false;
+  let isSubExpired = false;
+
+  if (gym.is_active === false) {
+    isSubExpired = true;
+  }
+
+  if (status === 'TRIAL') {
+    if (trialEndsAt && now < trialEndsAt) {
+      isTrialActive = true;
+    } else {
+      isTrialExpired = true;
+    }
+  } else if (status === 'ACTIVE') {
+    if (subEndDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (subEndDate < today) {
+        isSubExpired = true;
+      }
+    }
+  } else if (status === 'EXPIRED') {
+    isSubExpired = true;
+  }
+
+  let currentRank = 0;
+  if (isTrialActive) {
+    currentRank = 1; // Growth trial only
+  } else if (isTrialExpired || isSubExpired) {
+    currentRank = 0;
+  } else {
+    currentRank = getPlanRank(gym.subscription_plan);
+  }
+
+  const requiredPlan = FEATURE_PLAN_REQUIREMENT[featureName] || 'Growth';
+  const requiredRank = getPlanRank(requiredPlan);
+
+  return currentRank >= requiredRank;
+};
+
 module.exports = {
   authorizePlanFeature,
   ensureGymSubscriptionActive,
   FEATURE_PLAN_REQUIREMENT,
   PLAN_RANKS,
   getPlanRank,
-  resolveCanonicalPlan
+  resolveCanonicalPlan,
+  isGymFeatureEntitled
 };

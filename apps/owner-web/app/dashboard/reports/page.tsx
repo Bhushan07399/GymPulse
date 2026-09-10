@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Download, FileText, Filter, Printer, Search, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { getGymProfile } from "@/src/services/gym-settings.service";
 import { listActiveMembershipPlans } from "@/src/services/membership-plans.service";
 import {
@@ -303,7 +304,7 @@ export default function ReportsPage() {
       link.click();
       URL.revokeObjectURL(url);
     } catch (_err) {
-      alert("Failed to export report CSV.");
+      toast.error("Failed to export report CSV. Please try again.");
     } finally {
       setIsExporting(false);
     }
@@ -315,7 +316,7 @@ export default function ReportsPage() {
     try {
       const printWin = window.open("", "_blank", "width=850,height=950");
       if (!printWin) {
-        alert("Popup blocked! Please allow popups to print/export PDF.");
+        toast.error("Popup blocked. Please allow popups to print or export PDF.");
         return;
       }
 
@@ -449,7 +450,7 @@ export default function ReportsPage() {
       printWin.document.write(htmlContent);
       printWin.document.close();
     } catch (_err) {
-      alert("Failed to generate PDF report.");
+      toast.error("Failed to generate PDF report. Please try again.");
     } finally {
       setIsExporting(false);
     }

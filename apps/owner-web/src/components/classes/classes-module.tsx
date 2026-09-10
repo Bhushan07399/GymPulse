@@ -30,6 +30,7 @@ import {
   UserPlus
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { ConfirmationModal } from "@/src/components/ui/confirmation-modal";
 
 import {
   getClassKPIs,
@@ -181,6 +182,8 @@ export function ClassesModule() {
   const [selectedClassDetails, setSelectedClassDetails] = useState<GymClass | null>(null);
   const [selectedDue, setSelectedDue] = useState<ClassOutstandingDue | null>(null);
   const [selectedSessionQrId, setSelectedSessionQrId] = useState<string | null>(null);
+  const [classToDelete, setClassToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [paymentToVoid, setPaymentToVoid] = useState<{ paymentId: string; receiptNumber: string } | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -534,11 +537,7 @@ export function ClassesModule() {
                               <Edit3 className="size-4" />
                             </button>
                             <button
-                              onClick={() => {
-                                if (confirm(`Are you sure you want to delete ${c.name}?`)) {
-                                  deleteClassMutation.mutate(c.id);
-                                }
-                              }}
+                              onClick={() => setClassToDelete({ id: c.id, name: c.name })}
                               className="rounded-lg p-1.5 text-red-500 hover:bg-red-50 cursor-pointer"
                               title="Delete Class"
                             >
@@ -1012,11 +1011,7 @@ export function ClassesModule() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button
-                          onClick={() => {
-                            if (confirm(`Void payment ${p.receiptNumber}? This will remove it from active revenue while preserving audit history.`)) {
-                              deletePaymentMutation.mutate(p.paymentId);
-                            }
-                          }}
+                          onClick={() => setPaymentToVoid({ paymentId: p.paymentId, receiptNumber: p.receiptNumber })}
                           className="rounded-lg p-1.5 text-red-500 hover:bg-red-50 cursor-pointer"
                           title="Soft delete / Void"
                         >
@@ -1269,6 +1264,42 @@ export function ClassesModule() {
           />
         )}
       </AnimatePresence>
+
+      {/* DELETE CLASS CONFIRMATION MODAL */}
+      <ConfirmationModal
+        isOpen={Boolean(classToDelete)}
+        title="Delete Class"
+        message={`Are you sure you want to delete "${classToDelete?.name}"? All associated schedules and bookings will be affected.`}
+        confirmLabel="Delete Class"
+        isDestructive={true}
+        isLoading={deleteClassMutation.isPending}
+        onConfirm={() => {
+          if (classToDelete) {
+            deleteClassMutation.mutate(classToDelete.id, {
+              onSettled: () => setClassToDelete(null),
+            });
+          }
+        }}
+        onCancel={() => setClassToDelete(null)}
+      />
+
+      {/* VOID PAYMENT CONFIRMATION MODAL */}
+      <ConfirmationModal
+        isOpen={Boolean(paymentToVoid)}
+        title="Void Class Payment"
+        message={`Void payment ${paymentToVoid?.receiptNumber}? This will remove it from active revenue while preserving audit history.`}
+        confirmLabel="Void Payment"
+        isDestructive={true}
+        isLoading={deletePaymentMutation.isPending}
+        onConfirm={() => {
+          if (paymentToVoid) {
+            deletePaymentMutation.mutate(paymentToVoid.paymentId, {
+              onSettled: () => setPaymentToVoid(null),
+            });
+          }
+        }}
+        onCancel={() => setPaymentToVoid(null)}
+      />
     </motion.div>
   );
 }

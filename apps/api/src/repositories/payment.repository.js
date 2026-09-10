@@ -41,7 +41,7 @@ const findMemberForGym = async (gymId, memberId) => {
   const result = await pool.query(
     `SELECT id, member_id
      FROM members
-     WHERE member_id = UPPER($1) AND gym_id = $2 AND deleted_at IS NULL
+     WHERE (member_id = UPPER($1) OR id::text = LOWER($1)) AND gym_id = $2 AND deleted_at IS NULL
      LIMIT 1`,
     [memberId, gymId]
   );

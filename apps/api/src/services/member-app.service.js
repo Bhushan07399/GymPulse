@@ -436,6 +436,17 @@ const scanMemberAttendanceQR = async (gymId, memberId, { qrPayload }) => {
     throw err;
   }
 
+  // Trigger WhatsApp attendance confirmation safely in background
+  try {
+    const whatsappService = require('./whatsapp.service');
+    whatsappService.sendAttendanceConfirmation(
+      scannedGymId,
+      profile,
+      result.attendance.check_in_time,
+      targetGym.name
+    ).catch(() => {});
+  } catch (_) {}
+
   return {
     action: 'CHECK_IN',
     status: 'CHECKED_IN',

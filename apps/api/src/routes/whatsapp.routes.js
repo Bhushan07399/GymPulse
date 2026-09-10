@@ -7,8 +7,13 @@ const { asyncHandler } = require('../middleware/async-handler');
 
 const whatsappRouter = Router();
 
+// Public webhook endpoints for Meta WhatsApp Cloud API verification and delivery status
+whatsappRouter.get('/webhook', asyncHandler(whatsappController.verifyWebhook));
+whatsappRouter.post('/webhook', asyncHandler(whatsappController.handleWebhook));
+
 whatsappRouter.use(authenticate, authorize('Owner', 'Staff'), authorizePlanFeature('WHATSAPP_AUTOMATION'));
 
+whatsappRouter.get('/status', asyncHandler(whatsappController.getConnectionStatus));
 whatsappRouter.get('/settings', asyncHandler(whatsappController.getSettings));
 whatsappRouter.put('/settings', asyncHandler(whatsappController.updateSettings));
 

@@ -21,11 +21,21 @@ export type WhatsAppLog = {
   phone_number: string;
   template_name: string;
   provider_message_id: string | null;
-  status: "SENT" | "FAILED" | "SIMULATED_UNCONFIGURED";
+  status: "SENT" | "DELIVERED" | "READ" | "FAILED" | "NOT_CONFIGURED" | "SIMULATED_UNCONFIGURED" | string;
   error_message: string | null;
   sent_at: string;
   first_name?: string;
   last_name?: string;
+};
+
+export type WhatsAppConnectionStatus = {
+  isConfigured: boolean;
+  isEnabled: boolean;
+  phoneNumberId: string | null;
+  mode: "LIVE_META_API" | "LOG_ONLY_MODE" | string;
+  metaPhoneIdConfigured: boolean;
+  metaTokenConfigured: boolean;
+  webhookConfigured: boolean;
 };
 
 export type AutomationTemplate = {
@@ -138,4 +148,9 @@ export async function assignMemberClassSchedules(payload: { memberId: string; cl
 export async function getMemberClassSchedules(memberId: string, classId?: string) {
   const response = await apiClient.get<ApiResponse<{ schedules: any[] }>>(`/whatsapp/schedules/members/${memberId}`, { params: { classId } });
   return response.data.data.schedules;
+}
+
+export async function getWhatsAppConnectionStatus() {
+  const response = await apiClient.get<ApiResponse<WhatsAppConnectionStatus>>("/whatsapp/status");
+  return response.data.data;
 }

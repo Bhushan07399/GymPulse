@@ -33,6 +33,14 @@ Duration: {{duration}} days
 Status: Active
 Contact: {{gym_contact}}`,
 
+  PAYMENT_CONFIRMATION: `Hi {{member_name}}, payment received at {{gym_name}}!
+Amount: ₹{{amount}}
+Method: {{payment_method}}
+Receipt #: {{receipt_number}}
+Plan: {{membership_plan}}
+Thank you for your payment!
+Contact: {{gym_contact}}`,
+
   PAYMENT_RECEIPT: `🧾 *OFFICIAL PAYMENT RECEIPT*
 *{{gym_name}}*
 Receipt #: {{receipt_number}}
@@ -48,6 +56,10 @@ Payment Status: {{payment_status}}
 Validity: {{start_date}} to {{expiry_date}}
 Contact: {{gym_contact}}`,
 
+  DUE_REMINDER: `⚠️ *Payment Due Reminder - {{gym_name}}*
+Hi {{member_name}}, you have pending dues of ₹{{due_amount}} for {{membership_plan}}.
+Please clear your dues at reception or contact {{gym_contact}}.`,
+
   FITBHUZ_INTRO: `🚀 *Get the FitBhuz Member App*
 FitBhuz is your gym's digital member app for managing your membership, classes, attendance, payments and more.
 
@@ -59,6 +71,10 @@ FitBhuz is your gym's digital member app for managing your membership, classes, 
 2. Login using Member ID: *{{member_id}}*
 3. Enjoy your digital gym pass!`,
 
+  ATTENDANCE_CONFIRMATION: `💪 *Attendance Marked - {{gym_name}}*
+Hi {{member_name}}, your check-in has been recorded at {{check_in_time}}.
+Have a great workout today! 🔥`,
+
   CLASS_ASSIGNED: `🧘 *Class Subscription Assigned*
 Hi {{member_name}}, you are enrolled in *{{class_name}}* at {{gym_name}}!
 
@@ -69,11 +85,21 @@ Validity: {{expiry_date}}
 Instructor: {{instructor_name}}
 Contact: {{gym_contact}}`,
 
+  CLASS_BOOKING_CONFIRMATION: `🎉 *Class Spot Confirmed - {{gym_name}}*
+Hi {{member_name}}, your spot for *{{class_name}}* has been confirmed!
+📅 Schedule: {{class_schedule}}
+👨‍🏫 Instructor: {{instructor_name}}
+See you at the session!`,
+
   CLASS_REMINDER: `⏰ *Class Reminder - {{gym_name}}*
 Hi {{member_name}}, your *{{class_name}}* session is scheduled for:
 📅 Schedule: {{class_schedule}}
 👨‍🏫 Instructor: {{instructor_name}}
 See you at the studio!`,
+
+  CLASS_ATTENDANCE_CONFIRMATION: `✅ *Class Attendance Recorded - {{gym_name}}*
+Hi {{member_name}}, your attendance for *{{class_name}}* has been recorded at {{check_in_time}}.
+Great job showing up today! 🧘‍♂️`,
 
   CLASS_SCHEDULE_CHANGED: `📢 *Class Schedule Update - {{gym_name}}*
 Hi {{member_name}}, please note that your *{{class_name}}* schedule has been updated to:
@@ -130,38 +156,57 @@ const sendTemplateMessage = async ({
   gymId,
   memberId = null,
   automationType,
+  eventType,
   phoneNumber,
+  phone,
   templateName,
   parameters = [],
-  customText = null
+  customText = null,
+  idempotencyKey = null
 }) => {
-  const normalizedPhone = normalizePhoneNumber(phoneNumber);
+  const resolvedType = automationType || eventType || 'GENERIC_AUTOMATION';
+  const resolvedTemplate = templateName || eventType || resolvedType || 'DEFAULT';
+  const resolvedPhone = phoneNumber || phone;
+  const normalizedPhone = normalizePhoneNumber(resolvedPhone);
 
   if (!normalizedPhone) {
     await whatsappRepository.logWhatsAppDelivery({
       gymId,
       memberId,
-      automationType,
-      phoneNumber: phoneNumber || 'INVALID',
-      templateName,
+      automationType: resolvedType,
+      phoneNumber: resolvedPhone || 'INVALID',
+      templateName: resolvedTemplate,
       status: 'FAILED',
-      errorMessage: 'Invalid or missing recipient phone number.'
+      errorMessage: 'Invalid or missing recipient phone number.',
+      idempotencyKey
     });
-    return { success: false, reason: 'INVALID_PHONE' };
+    return { success: false, status: 'FAILED', error: 'Invalid or missing recipient phone number.', reason: 'INVALID_PHONE' };
   }
 
-  // Duplicate Check for daily items
-  if (automationType !== 'PAYMENT_RECEIPT' && automationType !== 'MANUAL_BROADCAST') {
-    const isDuplicate = await whatsappRepository.hasDuplicateWhatsAppSentToday(gymId, memberId, automationType);
+  // Idempotency check: if an idempotency key was supplied, check if already dispatched
+  if (idempotencyKey) {
+    const isAlreadyDispatched = await whatsappRepository.hasIdempotentEventDispatched(gymId, idempotencyKey);
+    if (isAlreadyDispatched) {
+      logger.info({ gymId, memberId, automationType: resolvedType, idempotencyKey }, 'WhatsApp message skipped (idempotent event already dispatched)');
+      return { success: false, duplicate: true, skipped: true, reason: 'IDEMPOTENT_SKIPPED' };
+    }
+  } else if (
+    resolvedType !== 'PAYMENT_RECEIPT' &&
+    resolvedType !== 'PAYMENT_CONFIRMATION' &&
+    resolvedType !== 'MANUAL_BROADCAST' &&
+    resolvedType !== 'IMPORTANT_NOTICE'
+  ) {
+    // Duplicate Check for daily items
+    const isDuplicate = await whatsappRepository.hasDuplicateWhatsAppSentToday(gymId, memberId, resolvedType);
     if (isDuplicate) {
-      logger.info({ gymId, memberId, automationType }, 'WhatsApp message skipped (duplicate sent today)');
-      return { success: false, reason: 'DUPLICATE_SKIPPED' };
+      logger.info({ gymId, memberId, automationType: resolvedType }, 'WhatsApp message skipped (duplicate sent today)');
+      return { success: false, duplicate: true, skipped: true, reason: 'DUPLICATE_SKIPPED' };
     }
   }
 
   const settings = await whatsappRepository.getWhatsAppSettings(gymId);
   const phoneNumberId = settings.phone_number_id || process.env.META_WHATSAPP_PHONE_NUMBER_ID;
-  const accessToken = process.env.META_WHATSAPP_ACCESS_TOKEN;
+  const accessToken = process.env.META_WHATSAPP_ACCESS_TOKEN || process.env.META_WHATSAPP_TOKEN;
 
   // If Official WhatsApp Cloud API Credentials exist in process.env or settings
   if (phoneNumberId && accessToken) {
@@ -179,7 +224,7 @@ const sendTemplateMessage = async ({
             to: normalizedPhone,
             type: 'template',
             template: {
-              name: templateName,
+              name: resolvedTemplate,
               language: { code: 'en_US' },
               components: parameters.length > 0 ? [
                 {
@@ -190,14 +235,19 @@ const sendTemplateMessage = async ({
             }
           };
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       const responseData = await response.json();
 
@@ -210,14 +260,15 @@ const sendTemplateMessage = async ({
       await whatsappRepository.logWhatsAppDelivery({
         gymId,
         memberId,
-        automationType,
+        automationType: resolvedType,
         phoneNumber: normalizedPhone,
-        templateName,
+        templateName: resolvedTemplate,
         providerMessageId: messageId,
-        status: 'SENT'
+        status: 'SENT',
+        idempotencyKey
       });
 
-      return { success: true, messageId };
+      return { success: true, messageId, providerMessageId: messageId, status: 'SENT' };
     } catch (apiErr) {
       const errorMsg = apiErr.message || 'WhatsApp Cloud API Error';
       logger.error({ gymId, memberId, errorMsg }, 'WhatsApp Cloud API Delivery Failed');
@@ -225,14 +276,15 @@ const sendTemplateMessage = async ({
       await whatsappRepository.logWhatsAppDelivery({
         gymId,
         memberId,
-        automationType,
+        automationType: resolvedType,
         phoneNumber: normalizedPhone,
-        templateName,
+        templateName: resolvedTemplate,
         status: 'FAILED',
-        errorMessage: errorMsg
+        errorMessage: errorMsg,
+        idempotencyKey
       });
 
-      return { success: false, error: errorMsg };
+      return { success: false, error: errorMsg, status: 'FAILED' };
     }
   }
 
@@ -240,14 +292,15 @@ const sendTemplateMessage = async ({
   await whatsappRepository.logWhatsAppDelivery({
     gymId,
     memberId,
-    automationType,
+    automationType: resolvedType,
     phoneNumber: normalizedPhone,
-    templateName,
-    status: 'SIMULATED_UNCONFIGURED',
-    errorMessage: 'Meta WhatsApp Cloud API credentials unconfigured in environment.'
+    templateName: resolvedTemplate,
+    status: 'NOT_CONFIGURED',
+    errorMessage: 'Meta WhatsApp Cloud API credentials unconfigured in environment.',
+    idempotencyKey
   });
 
-  return { success: true, simulated: true };
+  return { success: false, simulated: true, status: 'NOT_CONFIGURED', logged: true };
 };
 
 // 1. Member Created (Welcome + Gym Branding)
@@ -359,7 +412,8 @@ const sendPaymentConfirmation = async (gymId, payment, member, planName = 'Membe
       phoneNumber: member.phone,
       templateName: 'gympulse_payment_receipt',
       parameters: [member.first_name, `₹${paid}`, payment.payment_method || 'Cash', branding.gym_name],
-      customText: messageBody
+      customText: messageBody,
+      idempotencyKey: payment.id ? `payment:${payment.id}` : null
     });
 
     // Check & Trigger FitBhuz Special Message AFTER Payment Receipt IF not sent already
@@ -642,6 +696,181 @@ const sendManualBroadcastWhatsApp = async (gymId, broadcast, recipients = []) =>
   }
 };
 
+// 12. Attendance Confirmation
+const sendAttendanceConfirmation = async (gymId, member, checkInTime = null, gymName = null) => {
+  try {
+    if (!member || !member.phone) return;
+    const branding = await whatsappRepository.getGymBranding(gymId);
+    const settingsList = await whatsappRepository.getAutomationSettings(gymId);
+    const customSetting = settingsList.find((s) => s.event_type === 'ATTENDANCE_CONFIRMATION');
+
+    if (customSetting && !customSetting.is_enabled) return;
+
+    const timeStr = checkInTime
+      ? new Date(checkInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      : new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+    const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.ATTENDANCE_CONFIRMATION;
+    const messageBody = renderTemplate(templateText, {
+      gym_name: branding.gym_name || gymName || 'GymPulse Fitness',
+      member_name: `${member.first_name || member.firstName || ''} ${member.last_name || member.lastName || ''}`.trim(),
+      check_in_time: timeStr,
+      gym_contact: branding.whatsapp_number || branding.gym_phone || 'Reception'
+    });
+
+    const dateKey = new Date().toISOString().slice(0, 10);
+    const idempotencyKey = `attendance:${gymId}:${member.id}:${dateKey}`;
+
+    return await sendTemplateMessage({
+      gymId,
+      memberId: member.id,
+      automationType: 'ATTENDANCE_CONFIRMATION',
+      phoneNumber: member.phone,
+      templateName: 'gympulse_attendance_confirmation',
+      parameters: [member.first_name || member.firstName || 'Member', timeStr, branding.gym_name || 'GymPulse Fitness'],
+      customText: messageBody,
+      idempotencyKey
+    });
+  } catch (err) {
+    logger.error({ gymId, memberId: member?.id, err }, 'Failed sending attendance confirmation WhatsApp message');
+  }
+};
+
+// 13. Class Booking Confirmation
+const sendClassBookingConfirmation = async (gymId, member, classObj, scheduleText = 'Scheduled Session') => {
+  try {
+    if (!member || !member.phone || !classObj) return;
+    const branding = await whatsappRepository.getGymBranding(gymId);
+    const settingsList = await whatsappRepository.getAutomationSettings(gymId);
+    const customSetting = settingsList.find((s) => s.event_type === 'CLASS_BOOKING_CONFIRMATION');
+
+    if (customSetting && !customSetting.is_enabled) return;
+
+    const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.CLASS_BOOKING_CONFIRMATION;
+    const messageBody = renderTemplate(templateText, {
+      gym_name: branding.gym_name || 'GymPulse Fitness',
+      member_name: `${member.first_name || member.firstName || ''} ${member.last_name || member.lastName || ''}`.trim(),
+      class_name: classObj.name || 'Class',
+      class_schedule: scheduleText,
+      instructor_name: classObj.instructor_name || 'Coach',
+      gym_contact: branding.whatsapp_number || branding.gym_phone || 'Reception'
+    });
+
+    return await sendTemplateMessage({
+      gymId,
+      memberId: member.id,
+      automationType: 'CLASS_BOOKING_CONFIRMATION',
+      phoneNumber: member.phone,
+      templateName: 'gympulse_class_booking_confirmed',
+      parameters: [member.first_name || member.firstName || 'Member', classObj.name || 'Class', scheduleText],
+      customText: messageBody
+    });
+  } catch (err) {
+    logger.error({ gymId, memberId: member?.id, err }, 'Failed sending class booking confirmation WhatsApp message');
+  }
+};
+
+// 14. Class Attendance Confirmation
+const sendClassAttendanceConfirmation = async (gymId, member, classObj, checkInTime = null) => {
+  try {
+    if (!member || !member.phone || !classObj) return;
+    const branding = await whatsappRepository.getGymBranding(gymId);
+    const settingsList = await whatsappRepository.getAutomationSettings(gymId);
+    const customSetting = settingsList.find((s) => s.event_type === 'CLASS_ATTENDANCE_CONFIRMATION');
+
+    if (customSetting && !customSetting.is_enabled) return;
+
+    const timeStr = checkInTime
+      ? new Date(checkInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+      : new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+    const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.CLASS_ATTENDANCE_CONFIRMATION;
+    const messageBody = renderTemplate(templateText, {
+      gym_name: branding.gym_name || 'GymPulse Fitness',
+      member_name: `${member.first_name || member.firstName || ''} ${member.last_name || member.lastName || ''}`.trim(),
+      class_name: classObj.name || 'Class',
+      check_in_time: timeStr,
+      gym_contact: branding.whatsapp_number || branding.gym_phone || 'Reception'
+    });
+
+    const dateKey = new Date().toISOString().slice(0, 10);
+    const idempotencyKey = `class_attendance:${gymId}:${member.id}:${classObj.id || classObj.name}:${dateKey}`;
+
+    return await sendTemplateMessage({
+      gymId,
+      memberId: member.id,
+      automationType: 'CLASS_ATTENDANCE_CONFIRMATION',
+      phoneNumber: member.phone,
+      templateName: 'gympulse_class_attendance_confirmed',
+      parameters: [member.first_name || member.firstName || 'Member', classObj.name || 'Class', timeStr],
+      customText: messageBody,
+      idempotencyKey
+    });
+  } catch (err) {
+    logger.error({ gymId, memberId: member?.id, err }, 'Failed sending class attendance confirmation WhatsApp message');
+  }
+};
+
+// 15. Due / Outstanding Reminder
+const sendDueReminder = async (gymId, member, dueAmount, planName = 'Membership') => {
+  try {
+    if (!member || !member.phone) return;
+    const branding = await whatsappRepository.getGymBranding(gymId);
+    const settingsList = await whatsappRepository.getAutomationSettings(gymId);
+    const customSetting = settingsList.find((s) => s.event_type === 'DUE_REMINDER');
+
+    if (customSetting && !customSetting.is_enabled) return;
+
+    const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.DUE_REMINDER;
+    const messageBody = renderTemplate(templateText, {
+      gym_name: branding.gym_name || 'GymPulse Fitness',
+      member_name: `${member.first_name || member.firstName || ''} ${member.last_name || member.lastName || ''}`.trim(),
+      due_amount: dueAmount,
+      membership_plan: planName,
+      gym_contact: branding.whatsapp_number || branding.gym_phone || 'Reception'
+    });
+
+    return await sendTemplateMessage({
+      gymId,
+      memberId: member.id,
+      automationType: 'DUE_REMINDER',
+      phoneNumber: member.phone,
+      templateName: 'gympulse_due_reminder',
+      parameters: [member.first_name || member.firstName || 'Member', `₹${dueAmount}`, branding.gym_name || 'GymPulse Fitness'],
+      customText: messageBody
+    });
+  } catch (err) {
+    logger.error({ gymId, memberId: member?.id, err }, 'Failed sending due reminder WhatsApp message');
+  }
+};
+
+// 16. Important Notice / Account Notification
+const sendImportantNotice = async (gymId, member, title, noticeBody) => {
+  try {
+    if (!member || !member.phone) return;
+    const branding = await whatsappRepository.getGymBranding(gymId);
+    const templateText = DEFAULT_TEMPLATES.MANUAL_BROADCAST;
+    const messageBody = renderTemplate(templateText, {
+      gym_name: branding.gym_name || 'GymPulse Fitness',
+      member_name: `${member.first_name || member.firstName || ''} ${member.last_name || member.lastName || ''}`.trim(),
+      broadcast_message: noticeBody,
+      gym_contact: branding.whatsapp_number || branding.gym_phone || 'Reception'
+    });
+
+    return await sendTemplateMessage({
+      gymId,
+      memberId: member.id,
+      automationType: 'IMPORTANT_NOTICE',
+      phoneNumber: member.phone,
+      templateName: 'gympulse_manual_notice',
+      parameters: [member.first_name || member.firstName || 'Member', title],
+      customText: messageBody
+    });
+  } catch (err) {
+    logger.error({ gymId, memberId: member?.id, err }, 'Failed sending important notice WhatsApp message');
+  }
+};
+
 module.exports = {
   normalizePhoneNumber,
   DEFAULT_TEMPLATES,
@@ -650,6 +879,11 @@ module.exports = {
   sendWelcomeMessage,
   sendMembershipCreatedWhatsApp,
   sendPaymentConfirmation,
+  sendAttendanceConfirmation,
+  sendClassBookingConfirmation,
+  sendClassAttendanceConfirmation,
+  sendDueReminder,
+  sendImportantNotice,
   sendFitBhuzIntroWhatsApp,
   sendClassAssignedWhatsApp,
   sendClassReminderWhatsApp,

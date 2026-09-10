@@ -88,7 +88,27 @@ const getBookingsList = (gymId, classId, sessionId) =>
 
 const bookSession = async (gymId, classId, sessionId, memberId) => {
   try {
-    return await classesRepository.bookClassSession(gymId, classId, sessionId, memberId);
+    const booking = await classesRepository.bookClassSession(gymId, classId, sessionId, memberId);
+
+    // Safely trigger WhatsApp class booking confirmation in background
+    try {
+      const { pool } = require('../db/pool');
+      const memberRes = await pool.query('SELECT id, first_name, last_name, phone FROM members WHERE id = $1 AND gym_id = $2', [memberId, gymId]);
+      const classRes = await pool.query('SELECT id, name, instructor_name FROM classes WHERE id = $1 AND gym_id = $2', [classId, gymId]);
+      const sessionRes = await pool.query('SELECT session_date, start_time FROM class_sessions WHERE id = $1', [sessionId]);
+      if (memberRes.rows[0] && classRes.rows[0]) {
+        const scheduleStr = sessionRes.rows[0] ? `${sessionRes.rows[0].session_date} @ ${sessionRes.rows[0].start_time}` : 'Scheduled Session';
+        const whatsappService = require('./whatsapp.service');
+        whatsappService.sendClassBookingConfirmation(
+          gymId,
+          memberRes.rows[0],
+          classRes.rows[0],
+          scheduleStr
+        ).catch(() => {});
+      }
+    } catch (_) {}
+
+    return booking;
   } catch (err) {
     if (err.message === 'NO_ACTIVE_MEMBERSHIP') {
       throw new AppError(403, 'No active class membership found for this class.');
@@ -245,7 +265,25 @@ const memberScanClassQR = async (gymId, memberId, payload) => {
   }
 
   // 3. Mark attendance
-  return await classesRepository.markAttendance(gymId, targetClassId, targetSessionId, memberId, 'Attended');
+  const att = await classesRepository.markAttendance(gymId, targetClassId, targetSessionId, memberId, 'Attended');
+
+  // Safely trigger WhatsApp class attendance confirmation in background
+  try {
+    const { pool } = require('../db/pool');
+    const memberRes = await pool.query('SELECT id, first_name, last_name, phone FROM members WHERE id = $1 AND gym_id = $2', [memberId, gymId]);
+    const classRes = await pool.query('SELECT id, name FROM classes WHERE id = $1 AND gym_id = $2', [targetClassId, gymId]);
+    if (memberRes.rows[0] && classRes.rows[0]) {
+      const whatsappService = require('./whatsapp.service');
+      whatsappService.sendClassAttendanceConfirmation(
+        gymId,
+        memberRes.rows[0],
+        classRes.rows[0],
+        att?.marked_at || new Date()
+      ).catch(() => {});
+    }
+  } catch (_) {}
+
+  return att;
 };
 
 const getSessionQR = async (gymId, sessionId) => {

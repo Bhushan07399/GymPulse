@@ -208,6 +208,73 @@ const getMemberClassSchedules = async (request, response) => {
   });
 };
 
+const getConnectionStatus = async (request, response) => {
+  const settings = await whatsappRepository.getWhatsAppSettings(request.user.gymId);
+  const phoneNumberId = settings.phone_number_id || process.env.META_WHATSAPP_PHONE_NUMBER_ID;
+  const accessToken = process.env.META_WHATSAPP_ACCESS_TOKEN || process.env.META_WHATSAPP_TOKEN;
+  const isConnected = Boolean(phoneNumberId && accessToken);
+
+  response.status(200).json({
+    success: true,
+    data: {
+      isConfigured: isConnected,
+      isConnected,
+      isEnabled: Boolean(settings.is_enabled),
+      phoneNumberId: phoneNumberId ? String(phoneNumberId) : null,
+      phoneNumberIdMasked: phoneNumberId ? `••••${String(phoneNumberId).slice(-4)}` : null,
+      businessAccountIdMasked: settings.business_account_id ? `••••${String(settings.business_account_id).slice(-4)}` : null,
+      mode: isConnected ? 'LIVE_META_API' : 'LOG_ONLY_MODE',
+      metaPhoneIdConfigured: Boolean(process.env.META_WHATSAPP_PHONE_NUMBER_ID),
+      metaTokenConfigured: Boolean(process.env.META_WHATSAPP_ACCESS_TOKEN || process.env.META_WHATSAPP_TOKEN),
+      webhookConfigured: Boolean(process.env.META_WHATSAPP_WEBHOOK_VERIFY_TOKEN || process.env.META_WHATSAPP_VERIFY_TOKEN)
+    }
+  });
+};
+
+const verifyWebhook = async (request, response) => {
+  const mode = request.query['hub.mode'];
+  const token = request.query['hub.verify_token'];
+  const challenge = request.query['hub.challenge'];
+
+  const expectedToken = process.env.META_WHATSAPP_WEBHOOK_VERIFY_TOKEN || process.env.META_WHATSAPP_VERIFY_TOKEN || 'gympulse_webhook_secret';
+
+  if (mode === 'subscribe' && token === expectedToken) {
+    return response.status(200).send(challenge);
+  }
+
+  return response.status(403).json({ error: 'Webhook verification failed: token mismatch' });
+};
+
+const handleWebhook = async (request, response) => {
+  const body = request.body;
+
+  try {
+    const entries = body?.entry || [];
+    for (const entry of entries) {
+      const changes = entry.changes || [];
+      for (const change of changes) {
+        const statuses = change.value?.statuses || [];
+        for (const statusObj of statuses) {
+          const messageId = statusObj.id;
+          const status = statusObj.status; // 'sent', 'delivered', 'read', 'failed'
+          const errorMsg = statusObj.errors?.[0]?.message || null;
+          if (messageId && status) {
+            await whatsappRepository.updateWhatsAppDeliveryStatus(
+              messageId,
+              status.toUpperCase(),
+              errorMsg
+            );
+          }
+        }
+      }
+    }
+  } catch (err) {
+    // Non-blocking log
+  }
+
+  response.status(200).json({ success: true, status: 'EVENT_RECEIVED' });
+};
+
 module.exports = {
   getSettings,
   updateSettings,
@@ -222,5 +289,8 @@ module.exports = {
   getBroadcastHistory,
   getStats,
   assignMemberClassSchedules,
-  getMemberClassSchedules
+  getMemberClassSchedules,
+  getConnectionStatus,
+  verifyWebhook,
+  handleWebhook
 };

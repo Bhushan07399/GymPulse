@@ -61,7 +61,8 @@ const createMember = async (gymId, member) => {
 
     // Trigger event-driven WhatsApp automations asynchronously
     gymRepository.findProfileById(gymId).then(async (gym) => {
-      if (gym?.subscription_plan === 'Pro' || gym?.subscription_plan === 'PRO' || gym?.subscription_plan === 'Growth' || gym?.subscription_plan === 'Basic') {
+      const { isGymFeatureEntitled } = require('../middleware/authorize-plan-feature');
+      if (isGymFeatureEntitled(gym, 'WHATSAPP_AUTOMATION')) {
         await whatsappService.sendWelcomeMessage(gymId, createdMember).catch(() => {});
         if (plan) {
           await whatsappService.sendMembershipCreatedWhatsApp(gymId, createdMember, plan).catch(() => {});

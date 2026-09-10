@@ -27,6 +27,7 @@ import {
   updateStaffStatus,
 } from "@/src/services/staff.service";
 import { PlanLockedState } from "@/src/components/common/plan-locked-state";
+import { ConfirmationModal } from "@/src/components/ui/confirmation-modal";
 import type { CreateStaffInput, StaffMember, UpdateStaffInput } from "@/src/types/staff";
 
 export default function StaffManagementPage() {
@@ -34,6 +35,7 @@ export default function StaffManagementPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingStaff, setEditingStaff] = useState<StaffMember | null>(null);
   const [resetPasswordStaff, setResetPasswordStaff] = useState<StaffMember | null>(null);
+  const [staffToDelete, setStaffToDelete] = useState<StaffMember | null>(null);
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -68,6 +70,10 @@ export default function StaffManagementPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff-list"] });
       setActionSuccessMsg("Staff member deleted successfully.");
+      setTimeout(() => setActionSuccessMsg(null), 3000);
+    },
+    onError: (err: any) => {
+      setActionSuccessMsg(err?.response?.data?.error?.message ?? "Failed to delete staff member.");
       setTimeout(() => setActionSuccessMsg(null), 3000);
     },
   });
@@ -239,11 +245,7 @@ export default function StaffManagementPage() {
 
                           {item.role !== "Owner" && (
                             <button
-                              onClick={() => {
-                                if (confirm(`Are you sure you want to delete ${item.firstName}?`)) {
-                                  deleteMutation.mutate(item.id);
-                                }
-                              }}
+                              onClick={() => setStaffToDelete(item)}
                               className="p-1 text-slate-400 hover:text-red-600 transition-colors"
                               title="Delete Staff"
                             >
@@ -275,6 +277,24 @@ export default function StaffManagementPage() {
             onClose={() => setResetPasswordStaff(null)}
           />
         )}
+
+        {/* Delete Staff Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={Boolean(staffToDelete)}
+          title="Delete Staff Member"
+          message={`Are you sure you want to delete ${staffToDelete?.firstName} ${staffToDelete?.lastName}? They will lose access to the reception dashboard immediately.`}
+          confirmLabel="Delete Staff"
+          isDestructive={true}
+          isLoading={deleteMutation.isPending}
+          onConfirm={() => {
+            if (staffToDelete) {
+              deleteMutation.mutate(staffToDelete.id, {
+                onSettled: () => setStaffToDelete(null),
+              });
+            }
+          }}
+          onCancel={() => setStaffToDelete(null)}
+        />
       </div>
   );
 }

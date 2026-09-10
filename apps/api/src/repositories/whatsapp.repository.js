@@ -69,11 +69,39 @@ const hasDuplicateWhatsAppSentToday = async (gymId, memberId, automationType) =>
       AND member_id = $2
       AND automation_type = $3
       AND sent_at >= CURRENT_DATE
-      AND status IN ('SENT', 'SIMULATED_UNCONFIGURED')
+      AND status IN ('SENT', 'DELIVERED', 'READ', 'SIMULATED_UNCONFIGURED', 'NOT_CONFIGURED')
     LIMIT 1
   `;
   const result = await pool.query(query, [gymId, memberId, automationType]);
   return Boolean(result.rows[0]);
+};
+
+const hasIdempotentEventDispatched = async (gymId, idempotencyKey) => {
+  if (!idempotencyKey) return false;
+  const query = `
+    SELECT id
+    FROM whatsapp_logs
+    WHERE gym_id = $1
+      AND idempotency_key = $2
+      AND status NOT IN ('FAILED')
+    LIMIT 1
+  `;
+  const result = await pool.query(query, [gymId, idempotencyKey]);
+  return Boolean(result.rows[0]);
+};
+
+const updateWhatsAppDeliveryStatus = async (providerMessageId, status, errorMessage = null) => {
+  if (!providerMessageId) return null;
+  const query = `
+    UPDATE whatsapp_logs
+    SET status = $2,
+        error_message = COALESCE($3, error_message),
+        updated_at = NOW()
+    WHERE provider_message_id = $1
+    RETURNING id, gym_id, member_id, status, updated_at
+  `;
+  const result = await pool.query(query, [providerMessageId, status, errorMessage]);
+  return result.rows[0] || null;
 };
 
 const logWhatsAppDelivery = async ({
@@ -81,36 +109,43 @@ const logWhatsAppDelivery = async ({
   memberId = null,
   automationType,
   phoneNumber,
+  phone,
   templateName,
   providerMessageId = null,
   status = 'SENT',
-  errorMessage = null
+  errorMessage = null,
+  idempotencyKey = null
 }) => {
+  const resolvedPhone = phoneNumber || phone || 'UNKNOWN';
   const query = `
     INSERT INTO whatsapp_logs (
       gym_id, member_id, automation_type, phone_number,
-      template_name, provider_message_id, status, error_message, sent_at
+      template_name, provider_message_id, status, error_message,
+      idempotency_key, sent_at, updated_at
     )
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-    RETURNING id, status, sent_at
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+    RETURNING id, status, sent_at, idempotency_key
   `;
   const result = await pool.query(query, [
     gymId,
     memberId,
     automationType,
-    phoneNumber,
+    resolvedPhone,
     templateName,
     providerMessageId,
     status,
-    errorMessage
+    errorMessage,
+    idempotencyKey
   ]);
   return result.rows[0];
 };
 
 const listWhatsAppLogs = async (gymId, limit = 50) => {
+  const parsedLimit = typeof limit === 'object' && limit !== null ? Number(limit.limit || 50) : Number(limit || 50);
   const query = `
     SELECT wl.id, wl.gym_id, wl.member_id, wl.automation_type, wl.phone_number,
-           wl.template_name, wl.provider_message_id, wl.status, wl.error_message, wl.sent_at,
+           wl.template_name, wl.provider_message_id, wl.status, wl.error_message,
+           wl.idempotency_key, wl.sent_at, wl.updated_at,
            m.first_name, m.last_name
     FROM whatsapp_logs wl
     LEFT JOIN members m ON m.id = wl.member_id
@@ -118,7 +153,7 @@ const listWhatsAppLogs = async (gymId, limit = 50) => {
     ORDER BY wl.sent_at DESC
     LIMIT $2
   `;
-  const result = await pool.query(query, [gymId, limit]);
+  const result = await pool.query(query, [gymId, parsedLimit]);
   return result.rows;
 };
 
@@ -333,14 +368,20 @@ const getBroadcastHistory = async (gymId, limit = 20) => {
 
 const getAutomationStats = async (gymId) => {
   const totalRes = await pool.query('SELECT COUNT(*) FROM whatsapp_logs WHERE gym_id = $1', [gymId]);
-  const sentRes = await pool.query("SELECT COUNT(*) FROM whatsapp_logs WHERE gym_id = $1 AND status IN ('SENT', 'DELIVERED', 'SIMULATED_UNCONFIGURED')", [gymId]);
+  const deliveredRes = await pool.query("SELECT COUNT(*) FROM whatsapp_logs WHERE gym_id = $1 AND status IN ('SENT', 'DELIVERED', 'READ')", [gymId]);
+  const unconfiguredRes = await pool.query("SELECT COUNT(*) FROM whatsapp_logs WHERE gym_id = $1 AND status IN ('NOT_CONFIGURED', 'SIMULATED_UNCONFIGURED')", [gymId]);
   const failedRes = await pool.query("SELECT COUNT(*) FROM whatsapp_logs WHERE gym_id = $1 AND status = 'FAILED'", [gymId]);
   const todayRes = await pool.query('SELECT COUNT(*) FROM whatsapp_logs WHERE gym_id = $1 AND sent_at >= CURRENT_DATE', [gymId]);
   const monthRes = await pool.query("SELECT COUNT(*) FROM whatsapp_logs WHERE gym_id = $1 AND sent_at >= date_trunc('month', CURRENT_DATE)", [gymId]);
 
+  const delivered = parseInt(deliveredRes.rows[0].count, 10);
+  const unconfigured = parseInt(unconfiguredRes.rows[0].count, 10);
+
   return {
     total: parseInt(totalRes.rows[0].count, 10),
-    sent: parseInt(sentRes.rows[0].count, 10),
+    sent: delivered,
+    delivered,
+    unconfigured,
     failed: parseInt(failedRes.rows[0].count, 10),
     today: parseInt(todayRes.rows[0].count, 10),
     month: parseInt(monthRes.rows[0].count, 10)
@@ -351,6 +392,8 @@ module.exports = {
   getWhatsAppSettings,
   saveWhatsAppSettings,
   hasDuplicateWhatsAppSentToday,
+  hasIdempotentEventDispatched,
+  updateWhatsAppDeliveryStatus,
   logWhatsAppDelivery,
   listWhatsAppLogs,
   getAutomationSettings,

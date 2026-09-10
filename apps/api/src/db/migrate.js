@@ -440,6 +440,14 @@ const ensureSchema = async () => {
       CREATE INDEX IF NOT EXISTS idx_subscription_history_gym ON gym_subscription_history (gym_id, created_at DESC);
     `);
 
+    // 23. Add idempotency and delivery update columns to whatsapp_logs
+    await pool.query(`
+      ALTER TABLE whatsapp_logs ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(255) NULL;
+      ALTER TABLE whatsapp_logs ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+      CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_idempotency ON whatsapp_logs (gym_id, idempotency_key);
+      CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_provider_id ON whatsapp_logs (provider_message_id);
+    `);
+
     logger.info('Database schema migration check completed successfully.');
   } catch (err) {
     logger.error({ err }, 'Error running schema migration check');

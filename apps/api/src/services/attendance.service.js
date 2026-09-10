@@ -59,12 +59,24 @@ const createAttendance = async (gymId, attendance) => {
   }
 
   try {
-    return await attendanceRepository.createAttendance({
+    const created = await attendanceRepository.createAttendance({
       gymId,
       ...attendance,
       memberId: member.id,
       memberPublicId: member.member_id
     });
+
+    // Safely trigger WhatsApp attendance confirmation in background (non-blocking)
+    try {
+      const whatsappService = require('./whatsapp.service');
+      whatsappService.sendAttendanceConfirmation(
+        gymId,
+        member,
+        created.check_in_time || created.checkInTime
+      ).catch(() => {});
+    } catch (_) {}
+
+    return created;
   } catch (error) {
     handleAttendanceWriteError(error, member);
   }
