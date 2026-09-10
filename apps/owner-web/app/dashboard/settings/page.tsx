@@ -24,6 +24,7 @@ import {
   Sparkles,
   ShieldCheck,
 } from "lucide-react";
+import { apiClient } from "@/src/lib/api-client";
 import {
   getGymProfile,
   getGymSettings,
@@ -80,6 +81,15 @@ export default function GymSettingsPage() {
     queryKey: ["myGymLocations"],
     queryFn: getMyGymLocations,
     enabled: Boolean(entitlements.hasMultiGym),
+  });
+
+  const subscriptionHistoryQuery = useQuery({
+    queryKey: ["subscription-history"],
+    queryFn: async () => {
+      const res = await apiClient.get("/gym/subscription/history");
+      return res.data?.data?.history || [];
+    },
+    enabled: activeTab === "subscription",
   });
 
   const switchMutation = useMutation({
@@ -549,11 +559,23 @@ export default function GymSettingsPage() {
                 <div className="grid grid-cols-2 gap-4 border-t border-emerald-200/60 pt-4 text-xs font-medium text-emerald-950 sm:grid-cols-4">
                   <div>
                     <span className="text-[11px] font-bold text-emerald-800 uppercase block">Base Tier</span>
-                    <span>{summaryQuery.data?.subscriptionPlan || "Growth"}</span>
+                    <span className="font-bold">{summaryQuery.data?.subscriptionPlan || "Growth"}</span>
                   </div>
                   <div>
                     <span className="text-[11px] font-bold text-emerald-800 uppercase block">Scale</span>
-                    <span>{summaryQuery.data?.isMultiGym ? `Multi-Gym (${summaryQuery.data?.maxLocations || 1} Loc)` : "Single Gym"}</span>
+                    <span className="font-bold">{summaryQuery.data?.isMultiGym ? "Multi-Gym Network" : "Single Gym"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-emerald-800 uppercase block">Location Capacity</span>
+                    <span>{summaryQuery.data?.isMultiGym ? `${summaryQuery.data?.maxLocations || 1} Locations Allowed` : "1 Location"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-emerald-800 uppercase block">Locations In Use</span>
+                    <span>{locationsQuery.data?.length || 1} Active Location</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-emerald-800 uppercase block">Billing Cycle</span>
+                    <span className="capitalize">{summaryQuery.data?.billingCycle === "yearly" ? "Yearly (Annual 2-Mo Free)" : "Monthly"}</span>
                   </div>
                   <div>
                     <span className="text-[11px] font-bold text-emerald-800 uppercase block">Subscription Start</span>
@@ -562,6 +584,10 @@ export default function GymSettingsPage() {
                   <div>
                     <span className="text-[11px] font-bold text-emerald-800 uppercase block">Renewal Date</span>
                     <span>{summaryQuery.data?.subscriptionEndDate ? new Date(summaryQuery.data.subscriptionEndDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "N/A"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold text-emerald-800 uppercase block">Access Status</span>
+                    <span className="font-bold text-emerald-700">{summaryQuery.data?.subscriptionStatus || "ACTIVE"}</span>
                   </div>
                 </div>
               </div>
@@ -617,6 +643,55 @@ export default function GymSettingsPage() {
                   <p className="text-[11px] text-slate-500 font-medium pt-1">Pro + Group classes, schedules & class booking entitlement.</p>
                 </div>
               </div>
+            </div>
+
+            {/* SUBSCRIPTION HISTORY */}
+            <div className="border-t border-slate-100 pt-6 space-y-3">
+              <div>
+                <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider text-slate-400">
+                  Subscription History & Audit Trail
+                </h3>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Verified record of previous plans, billing cycles, and location allocations
+                </p>
+              </div>
+
+              {subscriptionHistoryQuery.isLoading ? (
+                <div className="rounded-xl border border-slate-200 p-4 text-center text-xs text-slate-500">
+                  Loading subscription history...
+                </div>
+              ) : (subscriptionHistoryQuery.data || []).length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-5 text-center text-xs text-slate-500 font-medium">
+                  No previous subscription records found (current subscription is your initial plan).
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-slate-700 font-bold">
+                        <th className="py-2.5 px-3">Plan</th>
+                        <th className="py-2.5 px-3">Scale & Locations</th>
+                        <th className="py-2.5 px-3">Billing Cycle</th>
+                        <th className="py-2.5 px-3">Valid From</th>
+                        <th className="py-2.5 px-3">Valid Until</th>
+                        <th className="py-2.5 px-3 text-right">Amount Paid</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {subscriptionHistoryQuery.data.map((item: any) => (
+                        <tr key={item.id} className="hover:bg-slate-50/60">
+                          <td className="py-2.5 px-3 font-bold text-slate-900">{item.plan}</td>
+                          <td className="py-2.5 px-3 text-slate-700">{item.is_multi_gym ? `Multi-Gym (${item.max_locations} loc)` : "Single Gym"}</td>
+                          <td className="py-2.5 px-3 text-slate-700 capitalize">{item.billing_cycle}</td>
+                          <td className="py-2.5 px-3 text-slate-600">{item.start_date}</td>
+                          <td className="py-2.5 px-3 text-slate-600">{item.end_date}</td>
+                          <td className="py-2.5 px-3 text-right font-bold text-emerald-700">₹{Number(item.amount_paid || 0).toLocaleString("en-IN")}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </section>
         </div>

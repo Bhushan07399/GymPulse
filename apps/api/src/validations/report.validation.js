@@ -5,7 +5,7 @@ const reportListSchema = z.object({
   body: z.object({}).optional().default({}),
   params: z.object({}),
   query: z.object({
-    type: z.enum(['member', 'payment', 'attendance', 'revenue']).default('member'),
+    type: z.enum(['member', 'payment', 'attendance', 'revenue', 'membership', 'business', 'class']).default('member'),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(10).max(100).default(20),
     sortBy: z.enum(['name', 'expiry', 'joinDate', 'revenue']).default('name'),

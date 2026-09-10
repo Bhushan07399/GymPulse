@@ -58,11 +58,11 @@ export function GymSwitcher() {
   const entitlements = getEntitlements(summaryQuery.data);
   const currentGym = locations.find((loc) => loc.isCurrent) || locations[0];
 
-  // STRICT SINGLE-GYM HIDING:
-  // Only display the switcher if the owner has an active Multi-Gym subscription
+  // STRICT MULTI-GYM SWITCHER VISIBILITY:
+  // Only display the switcher if the owner has an active Multi-Gym subscription AND has multiple locations
   const isMultiGymOwner = Boolean(entitlements.hasMultiGym);
 
-  if (!isMultiGymOwner) {
+  if (!isMultiGymOwner || locations.length <= 1) {
     return null;
   }
 

@@ -37,6 +37,48 @@ export interface ClassOutstandingDue {
   expiryDate?: string;
 }
 
+export interface ClassMembership {
+  membershipId: string;
+  startDate: string;
+  expiryDate: string;
+  membershipStatus: string;
+  sessionsAllowed: number | null;
+  sessionsUsed: number;
+  memberUuid: string;
+  memberId: string;
+  memberName: string;
+  memberPhone: string;
+  classId: string;
+  className: string;
+  classCategory: string;
+  instructorName: string | null;
+  planId: string;
+  planName: string;
+  planPrice: number;
+  billingPeriod: string;
+  isUnlimited: boolean;
+  paymentStatus: string;
+  remainingAmount: number;
+}
+
+export interface ClassPaymentRecord {
+  paymentId: string;
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  paymentDate: string;
+  paymentMethod: string;
+  paymentStatus: "Paid" | "Partial" | "Unpaid";
+  receiptNumber: string;
+  notes?: string;
+  memberUuid: string;
+  memberId: string;
+  memberName: string;
+  memberPhone: string;
+  className: string;
+  planName: string;
+}
+
 export interface BusinessRevenueOverview {
   businessSummary: {
     totalBusinessRevenue: number;
@@ -148,4 +190,21 @@ export async function getBusinessRevenueOverview(startDate?: string, endDate?: s
     params: { startDate, endDate }
   });
   return response.data.data;
+}
+
+export async function listAllClassMembers(classPlanId?: string) {
+  const response = await apiClient.get<ApiResponse<{ memberships: ClassMembership[] }>>("/class-plans/memberships", {
+    params: { classPlanId }
+  });
+  return response.data.data.memberships;
+}
+
+export async function listAllClassPayments() {
+  const response = await apiClient.get<ApiResponse<{ payments: ClassPaymentRecord[] }>>("/class-plans/payments");
+  return response.data.data.payments;
+}
+
+export async function softDeleteClassPayment(paymentId: string) {
+  const response = await apiClient.delete<ApiResponse<null>>(`/class-plans/payments/${paymentId}`);
+  return response.data;
 }

@@ -62,6 +62,41 @@ export interface ClassBookingRecord {
   instructorName: string | null;
 }
 
+export interface ClassSessionRecord {
+  sessionId: string;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+  capacity: number;
+  status: string;
+  classId: string;
+  className: string;
+  category: string;
+  instructorName: string | null;
+  bookedCount: number;
+  attendedCount: number;
+  availableSeats: number;
+}
+
+export interface ClassAttendanceRecord {
+  attendanceId: string;
+  status: string;
+  markedAt: string;
+  checkoutAt?: string;
+  memberUuid: string;
+  memberId: string;
+  memberName: string;
+  memberPhone: string;
+  sessionId: string;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+  classId: string;
+  className: string;
+  category: string;
+  instructorName: string | null;
+}
+
 export async function getClassKPIs() {
   const response = await apiClient.get<ApiResponse<ClassKPIs>>("/classes/dashboard");
   return response.data.data;
@@ -152,4 +187,18 @@ export async function getClassAttendanceAnalytics(classId?: string, category?: s
     params: { classId, category }
   });
   return response.data.data.analytics;
+}
+
+export async function listClassSessions(classId?: string, date?: string) {
+  const response = await apiClient.get<ApiResponse<{ sessions: ClassSessionRecord[] }>>("/classes/sessions", {
+    params: { classId, date }
+  });
+  return response.data.data.sessions;
+}
+
+export async function listGymClassAttendance(classId?: string, date?: string, sessionId?: string) {
+  const response = await apiClient.get<ApiResponse<{ attendance: ClassAttendanceRecord[] }>>("/classes/attendance", {
+    params: { classId, date, sessionId }
+  });
+  return response.data.data.attendance;
 }

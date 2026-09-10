@@ -12,9 +12,11 @@ const memberAllowed = [authenticate, authorize('Member'), authorizePlanFeature('
 // Owner / Staff Routes
 classesRouter.get('/dashboard', ...staffAllowed, asyncHandler(classesController.getDashboardKPIs));
 classesRouter.get('/schedule', ...staffAllowed, asyncHandler(classesController.getWeeklySchedule));
+classesRouter.get('/sessions', ...staffAllowed, asyncHandler(classesController.listSessions));
 classesRouter.get('/bookings', ...staffAllowed, asyncHandler(classesController.listBookings));
 classesRouter.put('/bookings/:bookingId/status', ...staffAllowed, asyncHandler(classesController.updateBookingStatus));
 classesRouter.post('/attendance', ...staffAllowed, asyncHandler(classesController.markAttendance));
+classesRouter.get('/attendance', ...staffAllowed, asyncHandler(classesController.listAttendance));
 classesRouter.get('/analytics', ...staffAllowed, asyncHandler(classesController.getClassAnalytics));
 classesRouter.get('/sessions/:sessionId/qr', ...staffAllowed, asyncHandler(classesController.getSessionQR));
 

@@ -1,5 +1,6 @@
 const gymRepository = require('../repositories/gym.repository');
 const { AppError } = require('../utils/app-error');
+const { createGymQrString } = require('../utils/gym-qr');
 
 const getProfile = async (request, response) => {
   const profile = await gymRepository.findProfileById(request.user.gymId);
@@ -50,7 +51,7 @@ const updateSettings = async (request, response) => {
 const getGymQr = async (request, response) => {
   const gymId = request.user.gymId;
   const gym = await gymRepository.findProfileById(gymId);
-  const qrString = `GYMPULSE-GYM:${gymId}`;
+  const qrString = createGymQrString(gymId);
 
   response.status(200).json({
     success: true,
@@ -96,13 +97,7 @@ const updateSubscription = async (request, response) => {
   const cycle = billingCycle === 'yearly' ? 'yearly' : 'monthly';
 
   const pricing = calculateSubscriptionPrice(canonicalPlan, multiGym, locationsCount, cycle);
-
-  const endDate = new Date();
-  if (cycle === 'yearly') {
-    endDate.setFullYear(endDate.getFullYear() + 1);
-  } else {
-    endDate.setMonth(endDate.getMonth() + 1);
-  }
+  const amountPaid = pricing.price || 0;
 
   await pool.query(
     `UPDATE gyms
@@ -112,12 +107,26 @@ const updateSubscription = async (request, response) => {
          billing_cycle = $4,
          subscription_status = 'ACTIVE',
          subscription_start_date = CURRENT_DATE,
-         subscription_end_date = $5::date,
+         subscription_end_date = CASE WHEN $4 = 'yearly' THEN (CURRENT_DATE + INTERVAL '1 year') ELSE (CURRENT_DATE + INTERVAL '1 month') END,
          trial_ends_at = NULL
      WHERE id IN (
+       SELECT s.gym_id FROM staff s WHERE LOWER(s.email) = LOWER($5) AND s.role = 'Owner'
+     )`,
+    [canonicalPlan, multiGym, locationsCount, cycle, ownerEmail]
+  );
+
+  await pool.query(
+    `INSERT INTO gym_subscription_history (
+       gym_id, plan, is_multi_gym, max_locations, billing_cycle, start_date, end_date, amount_paid
+     )
+     SELECT g.id, $1, $2, $3, $4, CURRENT_DATE,
+            CASE WHEN $4 = 'yearly' THEN (CURRENT_DATE + INTERVAL '1 year') ELSE (CURRENT_DATE + INTERVAL '1 month') END,
+            $5
+     FROM gyms g
+     WHERE g.id IN (
        SELECT s.gym_id FROM staff s WHERE LOWER(s.email) = LOWER($6) AND s.role = 'Owner'
      )`,
-    [canonicalPlan, multiGym, locationsCount, cycle, endDate.toISOString().slice(0, 10), ownerEmail]
+    [canonicalPlan, multiGym, locationsCount, cycle, amountPaid, ownerEmail]
   );
 
   response.status(200).json({
@@ -133,6 +142,29 @@ const updateSubscription = async (request, response) => {
   });
 };
 
+const getSubscriptionHistory = async (request, response) => {
+  const { pool } = require('../db/pool');
+  const gymId = request.user.gymId;
+
+  const result = await pool.query(
+    `SELECT id, gym_id, plan, is_multi_gym, max_locations, billing_cycle,
+            TO_CHAR(start_date, 'YYYY-MM-DD') AS start_date,
+            TO_CHAR(end_date, 'YYYY-MM-DD') AS end_date,
+            amount_paid, created_at
+     FROM gym_subscription_history
+     WHERE gym_id = $1
+     ORDER BY created_at DESC`,
+    [gymId]
+  );
+
+  response.status(200).json({
+    success: true,
+    data: {
+      history: result.rows
+    }
+  });
+};
+
 module.exports = {
   getProfile,
   updateProfile,
@@ -140,5 +172,6 @@ module.exports = {
   updateSettings,
   getGymQr,
   triggerManualReminders,
-  updateSubscription
+  updateSubscription,
+  getSubscriptionHistory
 };

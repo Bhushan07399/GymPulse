@@ -133,7 +133,7 @@ export function DashboardOverview() {
   if (!summary.data) return null;
 
   const data = summary.data;
-  const hasClassFeature = data.hasClassFeature !== false;
+  const hasClassFeature = Boolean(data.hasClassFeature);
   const activeMembersList = members.data?.members ?? [];
   const now = new Date(); now.setHours(0, 0, 0, 0);
   const expiring = activeMembersList.filter((member: Member) => { const expiry = new Date(`${member.expiryDate}T00:00:00`); const days = Math.ceil((expiry.getTime() - now.getTime()) / 86400000); return days >= 0 && days <= 7; }).slice(0, 4);
@@ -368,7 +368,7 @@ export function DashboardOverview() {
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
             <div className="space-y-2">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/20 px-3 py-1 text-xs font-extrabold text-blue-300 border border-blue-400/30">
-                <Sparkles className="size-3.5 fill-blue-300" /> GYMPULSE ENTERPRISE
+                <Activity className="size-3.5 text-blue-400" /> OPERATIONAL DASHBOARD
               </span>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Your gym, at a glance.</h1>
               <p className="text-xs sm:text-sm text-slate-300 max-w-xl font-medium">

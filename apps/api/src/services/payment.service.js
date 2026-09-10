@@ -91,6 +91,23 @@ const updatePayment = async (gymId, paymentId, changes) => {
   if (changes.membershipPlanId) await assertMembershipPlan(gymId, changes.membershipPlanId);
   if (changes.collectedByStaffId) await assertStaff(gymId, changes.collectedByStaffId);
 
+  if (changes.totalAmount !== undefined && changes.paymentAmount === undefined && Number(existing.discount_amount) === 0 && Number(existing.tax_amount) === 0) {
+    changes.paymentAmount = changes.totalAmount;
+  } else if (changes.paymentAmount !== undefined && changes.totalAmount === undefined && Number(existing.discount_amount) === 0 && Number(existing.tax_amount) === 0) {
+    changes.totalAmount = changes.paymentAmount;
+  }
+
+  const effectiveTotal = Number(changes.totalAmount ?? existing.total_amount);
+  const effectiveStatus = changes.paymentStatus ?? existing.payment_status;
+  if (effectiveStatus === 'Paid') {
+    changes.paidAmount = effectiveTotal;
+    changes.remainingAmount = 0;
+  }
+
+  if (changes.paymentDate && !changes.nextDueDate && existing.next_due_date < changes.paymentDate) {
+    changes.nextDueDate = changes.paymentDate;
+  }
+
   validatePayment({
     paymentAmount: changes.paymentAmount ?? Number(existing.payment_amount),
     discountAmount: changes.discountAmount ?? Number(existing.discount_amount),

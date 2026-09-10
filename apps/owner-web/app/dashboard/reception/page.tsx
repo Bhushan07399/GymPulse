@@ -43,8 +43,7 @@ export default function ReceptionistDashboardPage() {
 
           <div className="flex items-center gap-2">
             <Link
-              href="/member/scan"
-              target="_blank"
+              href="/dashboard/gym-qr"
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50"
             >
               <QrCode className="h-4 w-4 text-blue-600" />

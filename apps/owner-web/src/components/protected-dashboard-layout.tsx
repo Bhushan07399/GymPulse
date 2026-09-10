@@ -158,7 +158,7 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
   });
 
   const summaryData = summaryQuery.data as any;
-  const hasClassFeature = summaryQuery.data?.hasClassFeature !== false;
+  const hasClassFeature = Boolean(summaryQuery.data?.hasClassFeature);
   const trialActive = Boolean(summaryData?.isTrialActive);
   const trialExpired = Boolean(summaryData?.isTrialExpired);
   const trialDaysRemaining = Number(summaryData?.trialDaysRemaining ?? 0);
@@ -169,6 +169,8 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
     : null;
   const isExpired = Boolean(trialExpired || subscriptionStatus === "EXPIRED");
   const isPaidActive = subscriptionStatus === "ACTIVE" && !trialActive && !isExpired;
+  const daysRemaining = Number(summaryData?.subscriptionDaysRemaining ?? 999);
+  const isExpiringSoon = isPaidActive && daysRemaining <= 5 && daysRemaining > 0;
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -376,26 +378,26 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
             </div>
           )}
 
-          {isPaidActive && (
-            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-emerald-300 bg-emerald-50/90 p-4 text-emerald-950 shadow-sm backdrop-blur">
+          {isExpiringSoon && (
+            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-amber-300 bg-amber-50/90 p-4 text-amber-950 shadow-sm backdrop-blur">
               <div className="flex items-center gap-3">
-                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-600 font-black text-xs text-white shadow-sm">
-                  ✓
+                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-amber-600 font-black text-xs text-white shadow-sm">
+                  !
                 </span>
                 <div>
                   <p className="text-xs font-extrabold tracking-tight">
-                    {subscriptionPlan} Plan — Active
+                    Subscription Expiring Soon — {daysRemaining === 1 ? "Ends Today" : `${daysRemaining} days remaining`}
                   </p>
-                  <p className="text-[11px] text-emerald-800 font-medium leading-normal">
-                    {subscriptionEndDate ? `Your subscription is active until ${subscriptionEndDate}.` : "Your subscription is active."}
+                  <p className="text-[11px] text-amber-800 font-medium leading-normal">
+                    {subscriptionEndDate ? `Your ${subscriptionPlan} subscription ends on ${subscriptionEndDate}. Renew in Settings to maintain uninterrupted service.` : "Renew in Settings to avoid service interruption."}
                   </p>
                 </div>
               </div>
               <Link
-                href="/subscription"
-                className="inline-flex items-center justify-center rounded-xl bg-emerald-900 px-4 py-2.5 text-xs font-bold text-white shadow transition hover:bg-emerald-950 shrink-0"
+                href="/dashboard/settings"
+                className="inline-flex items-center justify-center rounded-xl bg-amber-900 px-4 py-2.5 text-xs font-bold text-white shadow transition hover:bg-amber-950 shrink-0"
               >
-                Manage Subscription
+                Renew in Settings
               </Link>
             </div>
           )}
@@ -406,7 +408,10 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
                 <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-rose-50 text-rose-600 font-bold text-xl">
                   ⌛
                 </span>
-                <h2 className="mt-4 text-xl font-extrabold tracking-tight text-slate-900">
+                <span className="mt-3 inline-block rounded-full bg-rose-100 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-rose-700">
+                  SUBSCRIPTION EXPIRED
+                </span>
+                <h2 className="mt-2 text-xl font-extrabold tracking-tight text-slate-900">
                   {trialExpired ? "Your 3-Day Free Trial Has Expired" : "Your Gym Subscription Has Expired"}
                 </h2>
                 <p className="mt-2 text-xs leading-5 text-slate-600 font-medium">

@@ -1,6 +1,17 @@
 const attendanceService = require('../services/attendance.service');
 const { buildPagination } = require('../utils/pagination');
 
+const formatAttendanceDate = (val) => {
+  if (!val) return null;
+  if (val instanceof Date) {
+    const y = val.getFullYear();
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const d = String(val.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return String(val).slice(0, 10);
+};
+
 const formatAttendance = (attendance) => ({
   id: attendance.id,
   gymId: attendance.gym_id,
@@ -8,7 +19,7 @@ const formatAttendance = (attendance) => ({
   memberUuid: attendance.member_id,
   checkInTime: attendance.check_in_time,
   checkOutTime: attendance.check_out_time,
-  attendanceDate: attendance.attendance_date,
+  attendanceDate: formatAttendanceDate(attendance.attendance_date),
   attendanceMethod: attendance.attendance_method,
   markedByStaffId: attendance.marked_by_staff_id,
   notes: attendance.notes,

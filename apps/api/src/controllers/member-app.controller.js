@@ -1,4 +1,5 @@
 const memberAppService = require('../services/member-app.service');
+const { createGymQrString } = require('../utils/gym-qr');
 
 const login = async (request, response) => {
   const result = await memberAppService.loginMember(request.validated.body);
@@ -132,15 +133,60 @@ const getDigitalCard = async (request, response) => {
 };
 
 const scanAttendanceQr = async (request, response) => {
-  const result = await memberAppService.scanMemberAttendanceQR(
+  try {
+    const result = await memberAppService.scanMemberAttendanceQR(
+      request.user.gymId,
+      request.user.id,
+      request.validated.body
+    );
+
+    response.status(200).json({
+      success: true,
+      message: result.message,
+      data: result
+    });
+  } catch (err) {
+    if (err.statusCode === 409) {
+      return response.status(409).json({
+        success: false,
+        error: {
+          code: err.code || 'ALREADY_CHECKED_IN',
+          message: err.message
+        },
+        message: err.message,
+        data: err.data || null
+      });
+    }
+    throw err;
+  }
+};
+
+const checkoutAttendance = async (request, response) => {
+  const attendanceId = request.params?.id || request.body?.attendanceId || null;
+  const result = await memberAppService.memberCheckOutAttendance(
     request.user.gymId,
     request.user.id,
-    request.validated.body
+    attendanceId
   );
 
   response.status(200).json({
     success: true,
     message: result.message,
+    data: result
+  });
+};
+
+const markClassAttendance = async (request, response) => {
+  const { sessionId, classId } = request.body || {};
+  const result = await memberAppService.markMemberClassAttendanceFromGymQr(
+    request.user.gymId,
+    request.user.id,
+    { sessionId, classId }
+  );
+
+  response.status(200).json({
+    success: true,
+    message: 'Class session attendance recorded!',
     data: result
   });
 };
@@ -170,7 +216,7 @@ const getCrowd = async (request, response) => {
 
 const getGymQrCode = async (request, response) => {
   const gymId = request.user.gymId;
-  const qrString = `GYMPULSE-GYM:${gymId}`;
+  const qrString = createGymQrString(gymId);
 
   response.status(200).json({
     success: true,
@@ -339,6 +385,8 @@ module.exports = {
   getReceipt,
   getDigitalCard,
   scanAttendanceQr,
+  checkoutAttendance,
+  markClassAttendance,
   getAttendance,
   getCrowd,
   getGymQrCode,

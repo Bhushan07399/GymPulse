@@ -1,4 +1,5 @@
 const { pool } = require('../db/pool');
+const { autoFinalizeExpiredAttendance } = require('./attendance.repository');
 
 const findMemberForAuth = async (identifier) => {
   const query = `
@@ -57,14 +58,21 @@ const checkMemberClassEntitlement = async (gymId, memberId) => {
 };
 
 const getTodayAttendanceForMember = async (gymId, memberId) => {
+  if (gymId) {
+    await autoFinalizeExpiredAttendance(gymId);
+  }
   const query = `
-    SELECT id, check_in_time, check_out_time, attendance_date, attendance_method
-    FROM attendance
-    WHERE gym_id = $1 AND member_id = $2 AND attendance_date = CURRENT_DATE AND deleted_at IS NULL
-    ORDER BY created_at DESC
+    SELECT a.id, a.gym_id, a.check_in_time, a.check_out_time,
+           TO_CHAR(a.attendance_date, 'YYYY-MM-DD') AS attendance_date,
+           a.attendance_method,
+           g.name AS gym_name
+    FROM attendance a
+    JOIN gyms g ON a.gym_id = g.id
+    WHERE a.member_id = $1 AND a.attendance_date = CURRENT_DATE AND a.deleted_at IS NULL
+    ORDER BY a.created_at DESC
     LIMIT 1
   `;
-  const result = await pool.query(query, [gymId, memberId]);
+  const result = await pool.query(query, [memberId]);
   return result.rows[0] ?? null;
 };
 
@@ -265,73 +273,212 @@ const createMemberRenewalRecord = async ({ gymId, memberId, membershipPlanId, pa
 
 const listMemberAttendanceLogs = async (gymId, memberId) => {
   const query = `
-    SELECT id, gym_id, member_id, check_in_time, check_out_time, attendance_date,
-           attendance_method, notes, created_at
-    FROM attendance
-    WHERE gym_id = $1 AND member_id = $2 AND deleted_at IS NULL
-    ORDER BY attendance_date DESC, check_in_time DESC
+    SELECT a.id, a.gym_id, a.member_id, a.check_in_time, a.check_out_time,
+           TO_CHAR(a.attendance_date, 'YYYY-MM-DD') AS attendance_date,
+           a.attendance_method, a.notes, a.created_at,
+           g.name AS gym_name
+    FROM attendance a
+    JOIN gyms g ON a.gym_id = g.id
+    WHERE a.member_id = $1 AND a.deleted_at IS NULL
+    ORDER BY a.attendance_date DESC, a.check_in_time DESC
     LIMIT 100
   `;
-  const result = await pool.query(query, [gymId, memberId]);
+  const result = await pool.query(query, [memberId]);
   return result.rows;
 };
 
 const recordMemberCheckIn = async (gymId, memberId, method = 'QR') => {
+  await autoFinalizeExpiredAttendance(gymId);
   const today = new Date().toISOString().slice(0, 10);
   const now = new Date();
 
   const existingQuery = `
-    SELECT id, check_in_time, check_out_time
-    FROM attendance
-    WHERE gym_id = $1 AND member_id = $2 AND attendance_date = $3 AND deleted_at IS NULL
+    SELECT a.id, a.gym_id, a.check_in_time, a.check_out_time,
+           TO_CHAR(a.attendance_date, 'YYYY-MM-DD') AS attendance_date,
+           a.attendance_method, g.name AS gym_name
+    FROM attendance a
+    JOIN gyms g ON a.gym_id = g.id
+    WHERE a.member_id = $1 AND a.attendance_date = CURRENT_DATE AND a.deleted_at IS NULL
     LIMIT 1
   `;
-  const existingResult = await pool.query(existingQuery, [gymId, memberId, today]);
+  const existingResult = await pool.query(existingQuery, [memberId]);
   const existing = existingResult.rows[0];
 
   if (existing) {
     if (existing.check_in_time && !existing.check_out_time) {
-      const updateQuery = `
-        UPDATE attendance
-        SET check_out_time = $1, updated_at = NOW()
-        WHERE id = $2
-        RETURNING id, check_in_time, check_out_time, attendance_date, attendance_method
-      `;
-      const updateResult = await pool.query(updateQuery, [now, existing.id]);
-      return { action: 'CHECK_OUT', attendance: updateResult.rows[0] };
+      return {
+        action: 'DUPLICATE',
+        alreadyCheckedIn: true,
+        attendance: existing
+      };
     } else {
-      const updateQuery = `
-        UPDATE attendance
-        SET check_in_time = $1, check_out_time = NULL, attendance_method = $2, updated_at = NOW()
-        WHERE id = $3
-        RETURNING id, check_in_time, check_out_time, attendance_date, attendance_method
-      `;
-      const updateResult = await pool.query(updateQuery, [now, method, existing.id]);
-      return { action: 'CHECK_IN', attendance: updateResult.rows[0] };
+      return {
+        action: 'ALREADY_COMPLETED',
+        alreadyCheckedIn: false,
+        attendance: existing
+      };
     }
   }
 
   const insertQuery = `
     INSERT INTO attendance (gym_id, member_id, check_in_time, attendance_date, attendance_method)
     VALUES ($1, $2, $3, $4, $5)
-    RETURNING id, check_in_time, check_out_time, attendance_date, attendance_method
+    RETURNING id, gym_id, check_in_time, check_out_time, TO_CHAR(attendance_date, 'YYYY-MM-DD') AS attendance_date, attendance_method
   `;
   const insertResult = await pool.query(insertQuery, [gymId, memberId, now, today, method]);
-  return { action: 'CHECK_IN', attendance: insertResult.rows[0] };
+  const created = insertResult.rows[0];
+
+  const gymRes = await pool.query('SELECT name FROM gyms WHERE id = $1', [gymId]);
+  created.gym_name = gymRes.rows[0]?.name || 'Gym';
+
+  return { action: 'CHECK_IN', attendance: created };
 };
 
-const recordMemberCheckOut = async (gymId, memberId) => {
-  const today = new Date().toISOString().slice(0, 10);
+const recordMemberCheckOut = async (gymId, memberId, attendanceId = null) => {
+  await autoFinalizeExpiredAttendance(gymId);
   const now = new Date();
 
+  let query;
+  let params;
+
+  if (attendanceId) {
+    query = `
+      UPDATE attendance
+      SET check_out_time = $1, updated_at = NOW()
+      WHERE id = $2 AND member_id = $3 AND check_out_time IS NULL AND deleted_at IS NULL
+      RETURNING id, gym_id, check_in_time, check_out_time, TO_CHAR(attendance_date, 'YYYY-MM-DD') AS attendance_date, attendance_method
+    `;
+    params = [now, attendanceId, memberId];
+  } else {
+    query = `
+      UPDATE attendance
+      SET check_out_time = $1, updated_at = NOW()
+      WHERE member_id = $2 AND attendance_date = CURRENT_DATE AND check_out_time IS NULL AND deleted_at IS NULL
+      RETURNING id, gym_id, check_in_time, check_out_time, TO_CHAR(attendance_date, 'YYYY-MM-DD') AS attendance_date, attendance_method
+    `;
+    params = [now, memberId];
+  }
+
+  const result = await pool.query(query, params);
+  if (result.rows[0]) {
+    const record = result.rows[0];
+    const gymRes = await pool.query('SELECT name FROM gyms WHERE id = $1', [record.gym_id]);
+    record.gym_name = gymRes.rows[0]?.name || 'Gym';
+    return { alreadyCheckedOut: false, attendance: record };
+  }
+
+  // Check if it was already checked out (for idempotent response)
+  const checkExistingQuery = attendanceId
+    ? `SELECT a.id, a.gym_id, a.check_in_time, a.check_out_time, TO_CHAR(a.attendance_date, 'YYYY-MM-DD') AS attendance_date, g.name AS gym_name FROM attendance a JOIN gyms g ON a.gym_id = g.id WHERE a.id = $1 AND a.member_id = $2 AND a.deleted_at IS NULL`
+    : `SELECT a.id, a.gym_id, a.check_in_time, a.check_out_time, TO_CHAR(a.attendance_date, 'YYYY-MM-DD') AS attendance_date, g.name AS gym_name FROM attendance a JOIN gyms g ON a.gym_id = g.id WHERE a.member_id = $1 AND a.attendance_date = CURRENT_DATE AND a.deleted_at IS NULL`;
+  const checkExistingParams = attendanceId ? [attendanceId, memberId] : [memberId];
+  const existingRes = await pool.query(checkExistingQuery, checkExistingParams);
+
+  if (existingRes.rows[0]) {
+    return { alreadyCheckedOut: true, attendance: existingRes.rows[0] };
+  }
+
+  return null;
+};
+
+const isMemberAuthorizedForGym = async (memberGymId, targetGymId) => {
+  if (String(memberGymId).toLowerCase() === String(targetGymId).toLowerCase()) {
+    return true;
+  }
   const query = `
-    UPDATE attendance
-    SET check_out_time = $1, updated_at = NOW()
-    WHERE gym_id = $2 AND member_id = $3 AND attendance_date = $4 AND check_out_time IS NULL AND deleted_at IS NULL
-    RETURNING id, check_in_time, check_out_time, attendance_date
+    SELECT 1
+    FROM gyms g1
+    JOIN gyms g2 ON g1.id = $1 AND g2.id = $2
+    WHERE g1.deleted_at IS NULL AND g2.deleted_at IS NULL
+      AND (g1.is_multi_gym = TRUE OR LOWER(g1.subscription_plan) LIKE '%multi%')
+      AND g1.subscription_status = 'ACTIVE'
+      AND (
+        EXISTS (
+          SELECT 1 FROM staff s1
+          JOIN staff s2 ON LOWER(s1.email) = LOWER(s2.email)
+          WHERE s1.gym_id = g1.id AND s2.gym_id = g2.id
+            AND s1.role = 'Owner' AND s2.role = 'Owner'
+            AND s1.is_active = TRUE AND s2.is_active = TRUE
+            AND s1.deleted_at IS NULL AND s2.deleted_at IS NULL
+        )
+        OR
+        (
+          (LOWER(g1.email) = LOWER(g2.email) AND g1.email IS NOT NULL AND g1.email != '')
+          OR
+          (LOWER(g1.owner_name) = LOWER(g2.owner_name) AND g1.owner_name IS NOT NULL AND g1.owner_name != '')
+        )
+      )
+    LIMIT 1
   `;
-  const result = await pool.query(query, [now, gymId, memberId, today]);
-  return result.rows[0] ?? null;
+  const result = await pool.query(query, [memberGymId, targetGymId]);
+  return result.rows.length > 0;
+};
+
+const getMemberEligibleClassSessions = async (gymId, memberId) => {
+  const query = `
+    SELECT
+      cs.id AS session_id,
+      cs.class_id,
+      TO_CHAR(cs.session_date, 'YYYY-MM-DD') AS session_date,
+      cs.start_time,
+      cs.end_time,
+      cs.capacity,
+      cs.status AS session_status,
+      c.name AS class_name,
+      c.category,
+      c.instructor_name,
+      b.id AS booking_id,
+      b.status AS booking_status,
+      ca.id AS attendance_id,
+      ca.status AS class_attendance_status,
+      ca.marked_at,
+      ca.checkout_at
+    FROM class_sessions cs
+    JOIN classes c ON c.id = cs.class_id
+    LEFT JOIN class_bookings b ON b.session_id = cs.id AND b.member_id = $2 AND b.status = 'Booked'
+    LEFT JOIN class_attendance ca ON ca.session_id = cs.id AND ca.member_id = $2
+    WHERE cs.gym_id = $1
+      AND cs.session_date = CURRENT_DATE
+      AND cs.status != 'Cancelled'
+      AND c.deleted_at IS NULL
+    ORDER BY cs.start_time ASC
+  `;
+  const result = await pool.query(query, [gymId, memberId]);
+
+  const membershipQuery = `
+    SELECT
+      cm.id, cm.status, cp.allowed_class_ids, cp.allowed_categories
+    FROM class_memberships cm
+    JOIN class_plans cp ON cp.id = cm.class_plan_id
+    WHERE cm.gym_id = $1 AND cm.member_id = $2 AND cm.status = 'Active' AND cm.expiry_date >= CURRENT_DATE
+  `;
+  const memRes = await pool.query(membershipQuery, [gymId, memberId]);
+  const activeMemberships = memRes.rows;
+
+  return result.rows.filter((session) => {
+    if (session.booking_id) return true;
+    if (activeMemberships.length === 0) return false;
+    return activeMemberships.some((cm) => {
+      const allowedIds = cm.allowed_class_ids || [];
+      const allowedCats = cm.allowed_categories || [];
+      const matchesId = allowedIds.length === 0 || allowedIds.includes(session.class_id);
+      const matchesCat = allowedCats.length === 0 || allowedCats.includes(session.category);
+      return matchesId && matchesCat;
+    });
+  }).map((s) => ({
+    sessionId: s.session_id,
+    classId: s.class_id,
+    sessionDate: s.session_date,
+    startTime: s.start_time,
+    endTime: s.end_time,
+    className: s.class_name,
+    category: s.category,
+    instructorName: s.instructor_name,
+    isBooked: Boolean(s.booking_id),
+    alreadyAttended: Boolean(s.attendance_id && s.class_attendance_status === 'Attended'),
+    markedAt: s.marked_at,
+    checkoutAt: s.checkout_at
+  }));
 };
 
 const getHourlyCrowdAnalytics = async (gymId) => {
@@ -546,5 +693,7 @@ module.exports = {
   updateMemberProfileRecord,
   listMemberNotifications,
   markNotificationAsRead,
-  markAllNotificationsAsRead
+  markAllNotificationsAsRead,
+  isMemberAuthorizedForGym,
+  getMemberEligibleClassSessions
 };

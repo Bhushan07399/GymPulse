@@ -33,5 +33,6 @@ apiRouter.use('/api/v1/classes', classesRouter);
 apiRouter.use('/api/v1/class-plans', classPlansRouter);
 apiRouter.use('/api/v1/bmi', bmiRouter);
 apiRouter.use('/api/v1/member', memberAppRouter);
+apiRouter.use('/api/v1/member-app', memberAppRouter);
 
 module.exports = { apiRouter };

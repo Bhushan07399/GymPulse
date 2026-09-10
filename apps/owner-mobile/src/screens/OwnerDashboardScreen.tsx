@@ -126,17 +126,22 @@ export const OwnerDashboardScreen = ({ navigation }: OwnerDashboardScreenProps) 
                 <Text style={styles.revenueValue}>₹{(data?.membershipRevenue ?? 0).toLocaleString('en-IN')}</Text>
               </View>
 
-              <View style={styles.revenueDivider} />
-
-              <View style={styles.revenueItem}>
-                <Text style={styles.revenueLabel}>{t('dashboard.classRevenue', 'Class Revenue')}</Text>
-                <Text style={[styles.revenueValue, { color: Colors.info }]}>₹{(data?.classRevenue ?? 0).toLocaleString('en-IN')}</Text>
-              </View>
+              {data?.hasClassFeature ? (
+                <>
+                  <View style={styles.revenueDivider} />
+                  <View style={styles.revenueItem}>
+                    <Text style={styles.revenueLabel}>{t('dashboard.classRevenue', 'Class Revenue')}</Text>
+                    <Text style={[styles.revenueValue, { color: Colors.info }]}>₹{(data?.classRevenue ?? 0).toLocaleString('en-IN')}</Text>
+                  </View>
+                </>
+              ) : null}
             </View>
 
             <View style={styles.revenueFooter}>
               <Text style={styles.totalLabel}>{t('dashboard.totalRevenue', 'Total Business Revenue')}:</Text>
-              <Text style={styles.totalValue}>₹{((data?.membershipRevenue ?? 0) + (data?.classRevenue ?? 0)).toLocaleString('en-IN')}</Text>
+              <Text style={styles.totalValue}>
+                ₹{((data?.membershipRevenue ?? 0) + (data?.hasClassFeature ? (data?.classRevenue ?? 0) : 0)).toLocaleString('en-IN')}
+              </Text>
             </View>
           </Card>
         </>

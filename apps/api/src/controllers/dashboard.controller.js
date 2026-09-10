@@ -3,7 +3,7 @@ const dashboardService = require('../services/dashboard.service');
 const summary = async (request, response) => {
   const dashboard = await dashboardService.getSummary(request.user.gymId);
 
-  const hasClassFeature = dashboard.has_classes_enabled !== false;
+  const hasClassFeature = Boolean(dashboard.has_classes_enabled);
   const gymMonthlyRevenue = Number(dashboard.gym_monthly_revenue || 0);
   const gymTotalRevenue = Number(dashboard.gym_total_revenue || 0);
   const classMonthlyRevenue = hasClassFeature ? Number(dashboard.class_monthly_revenue || 0) : 0;

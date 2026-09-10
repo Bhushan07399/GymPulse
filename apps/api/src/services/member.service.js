@@ -31,13 +31,15 @@ const handleMemberWriteError = (error) => {
 };
 
 const createMember = async (gymId, member) => {
-  const plan = await assertMembershipPlan(gymId, member.membershipPlanId);
-
-  // Server-side automatic calculation of expiry date based on plan duration_in_days
-  const joinDateObj = new Date(member.joinDate);
-  const expiryDateObj = new Date(joinDateObj);
-  expiryDateObj.setDate(expiryDateObj.getDate() + Number(plan.duration_in_days));
-  const calculatedExpiryDate = expiryDateObj.toISOString().slice(0, 10);
+  let plan = null;
+  let calculatedExpiryDate = member.expiryDate || null;
+  if (member.membershipPlanId) {
+    plan = await assertMembershipPlan(gymId, member.membershipPlanId);
+    const joinDateObj = new Date(member.joinDate);
+    const expiryDateObj = new Date(joinDateObj);
+    expiryDateObj.setDate(expiryDateObj.getDate() + Number(plan.duration_in_days));
+    calculatedExpiryDate = expiryDateObj.toISOString().slice(0, 10);
+  }
 
   const memberPayload = {
     ...member,
@@ -50,20 +52,22 @@ const createMember = async (gymId, member) => {
       staffId: null,
       member: memberPayload,
       plan,
-      paymentInfo: {
+      paymentInfo: plan ? {
         paymentStatus: member.paymentStatus || 'Paid',
         amountPaid: member.amountPaid,
         paymentMethod: member.paymentMethod || 'Cash'
-      }
+      } : { paymentStatus: 'Paid' }
     });
 
     // Trigger event-driven WhatsApp automations asynchronously
     gymRepository.findProfileById(gymId).then(async (gym) => {
       if (gym?.subscription_plan === 'Pro' || gym?.subscription_plan === 'PRO' || gym?.subscription_plan === 'Growth' || gym?.subscription_plan === 'Basic') {
         await whatsappService.sendWelcomeMessage(gymId, createdMember).catch(() => {});
-        await whatsappService.sendMembershipCreatedWhatsApp(gymId, createdMember, plan).catch(() => {});
+        if (plan) {
+          await whatsappService.sendMembershipCreatedWhatsApp(gymId, createdMember, plan).catch(() => {});
+        }
         if (createdMember.payment) {
-          await whatsappService.sendPaymentConfirmation(gymId, createdMember.payment, createdMember, plan.plan_name).catch(() => {});
+          await whatsappService.sendPaymentConfirmation(gymId, createdMember.payment, createdMember, plan ? plan.plan_name : 'Membership').catch(() => {});
         }
       }
     }).catch(() => {});

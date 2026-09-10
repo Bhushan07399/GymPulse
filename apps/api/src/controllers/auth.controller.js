@@ -22,6 +22,15 @@ const login = async (request, response) => {
         lastName: owner.last_name,
         email: owner.email,
         role: owner.role
+      },
+      gym: {
+        id: owner.gym_id,
+        name: owner.gym_name || 'My Gym',
+        subscriptionPlan: owner.subscription_plan || 'Growth',
+        subscriptionStatus: owner.subscription_status || 'ACTIVE',
+        isMultiGym: Boolean(owner.is_multi_gym),
+        maxLocations: Number(owner.max_locations || 1),
+        billingCycle: owner.billing_cycle || 'monthly'
       }
     }
   });

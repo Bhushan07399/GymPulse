@@ -11,11 +11,14 @@ const findStaffByEmail = async (email) => {
 
 const findOwnerByEmail = async (email) => {
   const result = await pool.query(
-    `SELECT id, gym_id, first_name, last_name, email, password_hash, role
-     FROM staff
-     WHERE LOWER(email) = LOWER($1)
-       AND is_active = TRUE
-       AND deleted_at IS NULL
+    `SELECT s.id, s.gym_id, s.first_name, s.last_name, s.email, s.password_hash, s.role,
+            g.name AS gym_name, g.subscription_plan, g.subscription_status, g.is_multi_gym,
+            g.max_locations, g.billing_cycle
+     FROM staff s
+     LEFT JOIN gyms g ON g.id = s.gym_id
+     WHERE LOWER(s.email) = LOWER($1)
+       AND s.is_active = TRUE
+       AND s.deleted_at IS NULL
      LIMIT 1`,
     [email]
   );

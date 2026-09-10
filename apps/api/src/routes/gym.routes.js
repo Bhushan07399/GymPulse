@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { getProfile, updateProfile, getSettings, updateSettings, getGymQr, triggerManualReminders, updateSubscription } = require('../controllers/gym.controller');
+const { getProfile, updateProfile, getSettings, updateSettings, getGymQr, triggerManualReminders, updateSubscription, getSubscriptionHistory } = require('../controllers/gym.controller');
 const { authenticate } = require('../middleware/authenticate');
 const { authorize } = require('../middleware/authorize');
 const { authorizePlanFeature } = require('../middleware/authorize-plan-feature');
@@ -25,5 +25,6 @@ gymRouter.get('/qr', authenticate, authorize('Owner', 'Receptionist'), authorize
 gymRouter.post('/trigger-reminders', authenticate, authorize('Owner', 'Receptionist'), asyncHandler(triggerManualReminders));
 gymRouter.post('/create-location', authenticate, authorize('Owner'), asyncHandler(createLocation));
 gymRouter.post('/subscription', authenticate, authorize('Owner'), asyncHandler(updateSubscription));
+gymRouter.get('/subscription/history', authenticate, authorize('Owner'), asyncHandler(getSubscriptionHistory));
 
 module.exports = { gymRouter };

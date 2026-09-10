@@ -2,15 +2,22 @@ const { pool } = require('../db/pool');
 
 const paymentColumns = `
   p.id, p.gym_id, p.member_id, m.member_id AS member_member_id,
-  p.membership_plan_id, p.payment_amount, p.discount_amount, p.tax_amount,
-  p.total_amount, p.payment_method, p.payment_status, p.transaction_reference,
-  p.payment_date, p.next_due_date, p.collected_by_staff_id, p.notes,
+  m.first_name AS member_first_name, m.last_name AS member_last_name, m.phone AS member_phone,
+  p.membership_plan_id, mp.plan_name AS membership_plan_name,
+  p.payment_amount, p.discount_amount, p.tax_amount,
+  p.total_amount, p.paid_amount, p.remaining_amount,
+  p.payment_method, p.payment_status, p.transaction_reference,
+  TO_CHAR(p.payment_date, 'YYYY-MM-DD') AS payment_date,
+  TO_CHAR(p.next_due_date, 'YYYY-MM-DD') AS next_due_date,
+  p.collected_by_staff_id, p.notes,
   p.created_at, p.updated_at`;
 
 const paymentReturningColumns = `
   id, gym_id, member_id, membership_plan_id, payment_amount, discount_amount,
   tax_amount, total_amount, paid_amount, remaining_amount, payment_method, payment_status, transaction_reference,
-  payment_date, next_due_date, collected_by_staff_id, notes, created_at, updated_at`;
+  TO_CHAR(payment_date, 'YYYY-MM-DD') AS payment_date,
+  TO_CHAR(next_due_date, 'YYYY-MM-DD') AS next_due_date,
+  collected_by_staff_id, notes, created_at, updated_at`;
 
 const editablePaymentColumns = Object.freeze({
   memberId: 'member_id',
@@ -163,7 +170,9 @@ const listPayments = async (gymId, { page, limit, search, sortBy, order, status,
             COUNT(*) OVER() AS total_count,
             SUM(p.paid_amount) OVER() AS filtered_total_revenue,
             SUM(CASE WHEN p.payment_date = CURRENT_DATE THEN p.paid_amount ELSE 0 END) OVER() AS filtered_todays_collections
-     FROM payments p JOIN members m ON m.id = p.member_id
+     FROM payments p
+     JOIN members m ON m.id = p.member_id
+     LEFT JOIN membership_plans mp ON mp.id = p.membership_plan_id
      WHERE p.gym_id = $1
        AND p.deleted_at IS NULL
        AND ($2::text IS NULL OR p.payment_status = $2)
@@ -197,7 +206,9 @@ const listPayments = async (gymId, { page, limit, search, sortBy, order, status,
 const findPaymentById = async (gymId, paymentId) => {
   const result = await pool.query(
     `SELECT ${paymentColumns}
-     FROM payments p JOIN members m ON m.id = p.member_id
+     FROM payments p
+     JOIN members m ON m.id = p.member_id
+     LEFT JOIN membership_plans mp ON mp.id = p.membership_plan_id
      WHERE p.id = $1 AND p.gym_id = $2 AND p.deleted_at IS NULL
      LIMIT 1`,
     [paymentId, gymId]

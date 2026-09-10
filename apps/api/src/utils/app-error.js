@@ -4,6 +4,7 @@ class AppError extends Error {
     this.name = 'AppError';
     this.statusCode = statusCode;
     this.details = details;
+    this.code = typeof details === 'string' ? details : (details?.code || undefined);
     this.isOperational = true;
   }
 }

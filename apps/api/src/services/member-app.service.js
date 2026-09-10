@@ -4,6 +4,7 @@ const { env } = require('../config/env');
 const memberAppRepository = require('../repositories/member-app.repository');
 const { resolveCanonicalPlan } = require('../middleware/authorize-plan-feature');
 const { AppError } = require('../utils/app-error');
+const { verifyAndExtractGymId } = require('../utils/gym-qr');
 
 const PASSWORD_SALT_ROUNDS = 12;
 
@@ -168,12 +169,16 @@ const getMemberDashboard = async (gymId, memberId) => {
     attendance: {
       todayStatus: todayAttendance
         ? {
+            id: todayAttendance.id,
+            gymId: todayAttendance.gym_id,
+            gymName: todayAttendance.gym_name || profile.gym_name,
             checkedIn: !todayAttendance.check_out_time,
             checkInTime: todayAttendance.check_in_time,
             checkOutTime: todayAttendance.check_out_time,
-            method: todayAttendance.attendance_method
+            method: todayAttendance.attendance_method,
+            status: !todayAttendance.check_out_time ? 'CHECKED_IN' : 'CHECKED_OUT'
           }
-        : { checkedIn: false, checkInTime: null, checkOutTime: null },
+        : { id: null, gymId: null, gymName: profile.gym_name, checkedIn: false, checkInTime: null, checkOutTime: null, status: 'NOT_CHECKED_IN' },
       totalCheckins: Number(attendanceStats.total_checkins ?? 0),
       monthCheckins: Number(attendanceStats.month_checkins ?? 0),
       streakDays: Number(attendanceStats.streak_days ?? 0)
@@ -364,49 +369,149 @@ const getDigitalMemberCard = async (gymId, memberId) => {
 };
 
 const scanMemberAttendanceQR = async (gymId, memberId, { qrPayload }) => {
-  const profile = await memberAppRepository.getMemberProfile(gymId, memberId);
+  const scannedGymId = verifyAndExtractGymId(qrPayload, {
+    allowUnsigned: process.env.ALLOW_LEGACY_UNSIGNED_GYM_QR === 'true'
+  });
 
+  if (!scannedGymId) {
+    throw new AppError(400, 'Invalid Gym QR.');
+  }
+
+  const { pool } = require('../db/pool');
+  const targetGymRes = await pool.query(
+    'SELECT id, name, is_multi_gym, subscription_status, subscription_plan FROM gyms WHERE id = $1 AND deleted_at IS NULL',
+    [scannedGymId]
+  );
+  const targetGym = targetGymRes.rows[0];
+  if (!targetGym) {
+    throw new AppError(400, 'Invalid Gym QR.');
+  }
+
+  const profile = await memberAppRepository.getMemberProfile(gymId, memberId);
   if (!profile || !profile.is_active) {
     throw new AppError(403, 'Your member account is inactive. Please contact gym reception.');
   }
 
-  let scannedGymId = null;
-  const rawQr = String(qrPayload || '').trim();
-
-  if (rawQr.startsWith('{')) {
-    try {
-      const parsed = JSON.parse(rawQr);
-      scannedGymId = parsed.gymId ?? parsed.gym_id;
-    } catch (_err) {
-      scannedGymId = null;
-    }
-  } else if (rawQr.startsWith('GYMPULSE-GYM:')) {
-    scannedGymId = rawQr.replace('GYMPULSE-GYM:', '').trim();
-  } else {
-    scannedGymId = rawQr;
+  const isMembershipExpired = profile.expiry_date && new Date(profile.expiry_date).getTime() < new Date().setHours(0, 0, 0, 0);
+  const hasClassEntitlement = await memberAppRepository.checkMemberClassEntitlement(gymId, memberId);
+  if (isMembershipExpired && !hasClassEntitlement) {
+    throw new AppError(403, 'Your gym membership is not active.');
   }
 
-  if (!scannedGymId || scannedGymId.toLowerCase() !== String(gymId).toLowerCase()) {
-    throw new AppError(400, 'Invalid QR code. This QR code does not belong to your gym.');
+  // Multi-Gym / Location authorization check
+  const isAuthorized = await memberAppRepository.isMemberAuthorizedForGym(gymId, scannedGymId);
+  if (!isAuthorized) {
+    throw new AppError(403, 'This QR belongs to another gym.');
   }
 
-  const result = await memberAppRepository.recordMemberCheckIn(gymId, memberId, 'QR');
+  // Detect today's eligible class sessions
+  const eligibleClasses = await memberAppRepository.getMemberEligibleClassSessions(scannedGymId, memberId);
 
-  if (result.action === 'CHECK_OUT') {
-    return {
-      action: 'CHECK_OUT',
-      status: 'CHECKED_OUT',
-      checkOutTime: result.attendance.check_out_time,
-      message: 'Successfully checked out! Have a great rest of your day.'
+  const result = await memberAppRepository.recordMemberCheckIn(scannedGymId, memberId, 'QR');
+
+  if (result.action === 'DUPLICATE') {
+    const err = new AppError(409, "You're already checked in.", 'ALREADY_CHECKED_IN');
+    err.data = {
+      attendanceId: result.attendance.id,
+      gymId: result.attendance.gym_id,
+      gymName: result.attendance.gym_name || targetGym.name,
+      checkInTime: result.attendance.check_in_time,
+      status: 'CHECKED_IN',
+      eligibleClasses
     };
+    throw err;
+  }
+
+  if (result.action === 'ALREADY_COMPLETED') {
+    const err = new AppError(409, "Today's gym attendance is already completed.", 'ALREADY_COMPLETED');
+    err.data = {
+      attendanceId: result.attendance.id,
+      gymId: result.attendance.gym_id,
+      gymName: result.attendance.gym_name || targetGym.name,
+      checkInTime: result.attendance.check_in_time,
+      checkOutTime: result.attendance.check_out_time,
+      status: 'CHECKED_OUT',
+      eligibleClasses
+    };
+    throw err;
   }
 
   return {
     action: 'CHECK_IN',
     status: 'CHECKED_IN',
     checkInTime: result.attendance.check_in_time,
+    attendance: {
+      id: result.attendance.id,
+      gymId: result.attendance.gym_id,
+      gymName: result.attendance.gym_name || targetGym.name,
+      checkInTime: result.attendance.check_in_time,
+      checkOutTime: result.attendance.check_out_time,
+      attendanceDate: result.attendance.attendance_date,
+      attendanceMethod: result.attendance.attendance_method,
+      status: 'CHECKED_IN'
+    },
+    eligibleClasses,
     message: 'Welcome to the gym! Successfully checked in.'
   };
+};
+
+const memberCheckOutAttendance = async (gymId, memberId, attendanceId = null) => {
+  const result = await memberAppRepository.recordMemberCheckOut(gymId, memberId, attendanceId);
+  if (!result) {
+    throw new AppError(404, 'No active attendance record found to check out.');
+  }
+
+  if (result.alreadyCheckedOut) {
+    return {
+      action: 'CHECK_OUT',
+      status: 'CHECKED_OUT',
+      alreadyCheckedOut: true,
+      checkOutTime: result.attendance.check_out_time,
+      attendance: {
+        id: result.attendance.id,
+        gymId: result.attendance.gym_id,
+        gymName: result.attendance.gym_name,
+        checkInTime: result.attendance.check_in_time,
+        checkOutTime: result.attendance.check_out_time,
+        attendanceDate: result.attendance.attendance_date,
+        status: 'COMPLETED'
+      },
+      message: "Today's gym attendance is already completed."
+    };
+  }
+
+  return {
+    action: 'CHECK_OUT',
+    status: 'CHECKED_OUT',
+    alreadyCheckedOut: false,
+    checkOutTime: result.attendance.check_out_time,
+    attendance: {
+      id: result.attendance.id,
+      gymId: result.attendance.gym_id,
+      gymName: result.attendance.gym_name,
+      checkInTime: result.attendance.check_in_time,
+      checkOutTime: result.attendance.check_out_time,
+      attendanceDate: result.attendance.attendance_date,
+      status: 'COMPLETED'
+    },
+    message: 'Successfully checked out! Have a great rest of your day.'
+  };
+};
+
+const markMemberClassAttendanceFromGymQr = async (gymId, memberId, { sessionId, classId }) => {
+  if (!sessionId) {
+    throw new AppError(400, 'Session ID is required to mark class attendance.');
+  }
+  let targetClassId = classId;
+  if (!targetClassId) {
+    const { pool } = require('../db/pool');
+    const sRes = await pool.query('SELECT class_id FROM class_sessions WHERE id = $1', [sessionId]);
+    if (sRes.rows[0]) {
+      targetClassId = sRes.rows[0].class_id;
+    }
+  }
+  const classesService = require('./classes.service');
+  return await classesService.memberScanClassQR(gymId, memberId, { sessionId, classId: targetClassId });
 };
 
 const getMemberAttendanceDetails = async (gymId, memberId) => {
@@ -424,11 +529,14 @@ const getMemberAttendanceDetails = async (gymId, memberId) => {
 
     return {
       id: log.id,
+      gymId: log.gym_id,
+      gymName: log.gym_name,
       attendanceDate: log.attendance_date,
       checkInTime: log.check_in_time,
       checkOutTime: log.check_out_time,
       durationMinutes,
-      attendanceMethod: log.attendance_method
+      attendanceMethod: log.attendance_method,
+      status: !log.check_out_time ? 'IN' : 'COMPLETED'
     };
   });
 
@@ -440,12 +548,16 @@ const getMemberAttendanceDetails = async (gymId, memberId) => {
   return {
     today: todayAttendance
       ? {
+          id: todayAttendance.id,
+          gymId: todayAttendance.gym_id,
+          gymName: todayAttendance.gym_name,
           checkedIn: !todayAttendance.check_out_time,
           checkInTime: todayAttendance.check_in_time,
           checkOutTime: todayAttendance.check_out_time,
+          attendanceMethod: todayAttendance.attendance_method,
           status: !todayAttendance.check_out_time ? 'CHECKED_IN' : 'CHECKED_OUT'
         }
-      : { checkedIn: false, checkInTime: null, checkOutTime: null, status: 'NOT_CHECKED_IN' },
+      : { id: null, gymId: null, gymName: null, checkedIn: false, checkInTime: null, checkOutTime: null, status: 'NOT_CHECKED_IN' },
     stats: {
       totalVisits: Number(attendanceStats.total_checkins ?? 0),
       monthVisits,
@@ -731,5 +843,7 @@ module.exports = {
   getMemberNotificationsList,
   markMemberNotificationRead,
   markAllMemberNotificationsRead,
-  changeMemberPasswordAction
+  changeMemberPasswordAction,
+  memberCheckOutAttendance,
+  markMemberClassAttendanceFromGymQr
 };

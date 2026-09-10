@@ -12,7 +12,13 @@ import { listMembers } from "@/src/services/members.service";
 import type { Attendance } from "@/src/types/attendance";
 import type { Member } from "@/src/types/member";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 const inputClass = "w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5 text-sm text-[#0F172A] outline-none transition placeholder:text-[#94A3B8] focus:border-[#94A3B8] focus:bg-white focus:ring-4 focus:ring-slate-100";
 const emptyMembers: Member[] = [];
 
@@ -21,21 +27,109 @@ function formatTime(value: string | null) {
   return new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(value));
 }
 
-function initials(member?: Member) {
+function initials(member?: Member | null) {
   return member ? `${member.firstName[0] ?? ""}${member.lastName[0] ?? ""}`.toUpperCase() : "?";
 }
 
-function RecordAttendanceModal({ members, isSaving, onClose, onSubmit }: { members: Member[]; isSaving: boolean; onClose: () => void; onSubmit: (memberId: string) => void }) {
+function RecordAttendanceModal({
+  members,
+  plans,
+  checkedInMemberIds,
+  isSaving,
+  onClose,
+  onSubmit,
+}: {
+  members: Member[];
+  plans: any[];
+  checkedInMemberIds: Set<string>;
+  isSaving: boolean;
+  onClose: () => void;
+  onSubmit: (memberId: string) => void;
+}) {
   const [memberId, setMemberId] = useState("");
   const selectedMember = members.find((member) => member.memberId === memberId);
-  return <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end bg-[#0F172A]/50 p-0 sm:items-center sm:justify-center sm:p-6">
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="w-full rounded-t-2xl bg-white p-6 shadow-2xl sm:max-w-lg sm:rounded-2xl">
-      <div className="flex items-start justify-between gap-4"><div><p className="text-sm font-medium text-[#64748B]">Manual check-in</p><h2 className="mt-1 text-xl font-semibold tracking-[-0.04em] text-[#0F172A]">Record attendance</h2><p className="mt-2 text-sm leading-6 text-[#64748B]">Choose a member to add their check-in for today.</p></div><button type="button" onClick={onClose} className="rounded-lg p-2 text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0F172A]" aria-label="Close"><X className="size-5" /></button></div>
-      <label className="mt-6 block text-sm font-semibold text-[#334155]">Member ID<select value={memberId} onChange={(event) => setMemberId(event.target.value)} className={`${inputClass} mt-2`}><option value="">Select a Member ID</option>{members.map((member) => <option key={member.id} value={member.memberId}>{member.memberId} — {member.firstName} {member.lastName}</option>)}</select></label>
-      {selectedMember && <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-[#F8FAFC] p-4 text-sm"><p><span className="block text-xs text-[#64748B]">Name</span>{selectedMember.firstName} {selectedMember.lastName}</p><p><span className="block text-xs text-[#64748B]">Mobile</span>{selectedMember.phone}</p><p><span className="block text-xs text-[#64748B]">Membership</span>{selectedMember.membershipPlanId}</p><p><span className="block text-xs text-[#64748B]">Status</span>{selectedMember.isActive ? "Active" : "Inactive"}</p></div>}
-      <div className="mt-6 flex justify-end gap-3 border-t border-[#E2E8F0] pt-5"><button type="button" onClick={onClose} className="rounded-xl px-4 py-2.5 text-sm font-semibold text-[#475569] hover:bg-[#F1F5F9]">Cancel</button><button type="button" disabled={!memberId || isSaving} onClick={() => onSubmit(memberId)} className="inline-flex items-center gap-2 rounded-xl bg-[#0F172A] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1E293B] disabled:cursor-not-allowed disabled:opacity-60"><LogIn className="size-4" />{isSaving ? "Recording..." : "Record check-in"}</button></div>
+  const planMap = useMemo(() => new Map(plans.map((p) => [p.id, p.planName])), [plans]);
+  const isAlreadyCheckedIn = selectedMember
+    ? checkedInMemberIds.has(selectedMember.memberId) ||
+      checkedInMemberIds.has(selectedMember.memberId.toUpperCase()) ||
+      checkedInMemberIds.has(selectedMember.memberId.toLowerCase()) ||
+      checkedInMemberIds.has(selectedMember.id)
+    : false;
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end bg-[#0F172A]/50 p-0 sm:items-center sm:justify-center sm:p-6">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="w-full rounded-t-2xl bg-white p-6 shadow-2xl sm:max-w-lg sm:rounded-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-[#64748B]">Manual Check-In</p>
+            <h2 className="mt-1 text-xl font-semibold tracking-[-0.04em] text-[#0F172A]">Record Attendance</h2>
+            <p className="mt-2 text-sm leading-6 text-[#64748B]">Choose a member to record their check-in for today.</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg p-2 text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0F172A]" aria-label="Close">
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <label className="mt-6 block text-sm font-semibold text-[#334155]">
+          Select Member
+          <select value={memberId} onChange={(event) => setMemberId(event.target.value)} className={`${inputClass} mt-2`}>
+            <option value="">Select a member...</option>
+            {members.map((member) => (
+              <option key={member.id} value={member.memberId}>
+                {member.firstName} {member.lastName} ({member.memberId})
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {selectedMember && (
+          <div className="mt-4 space-y-3">
+            {isAlreadyCheckedIn && (
+              <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
+                <span>⚠️ {selectedMember.firstName} {selectedMember.lastName} has already checked in today.</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 rounded-xl bg-[#F8FAFC] p-4 text-sm border border-slate-100">
+              <p>
+                <span className="block text-xs text-[#64748B] font-medium">Member Name</span>
+                <span className="font-semibold text-slate-900">{selectedMember.firstName} {selectedMember.lastName}</span>
+              </p>
+              <p>
+                <span className="block text-xs text-[#64748B] font-medium">Mobile</span>
+                <span className="text-slate-700">{selectedMember.phone || "—"}</span>
+              </p>
+              <p>
+                <span className="block text-xs text-[#64748B] font-medium">Membership Plan</span>
+                <span className="font-semibold text-slate-800">{planMap.get(selectedMember.membershipPlanId) || "Gym Membership"}</span>
+              </p>
+              <p>
+                <span className="block text-xs text-[#64748B] font-medium">Today&apos;s Status</span>
+                <span className={`inline-flex items-center gap-1 font-bold ${isAlreadyCheckedIn ? "text-amber-700" : "text-emerald-600"}`}>
+                  {isAlreadyCheckedIn ? "Already Checked In" : "Not Checked In"}
+                </span>
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-6 flex justify-end gap-3 border-t border-[#E2E8F0] pt-5">
+          <button type="button" onClick={onClose} className="rounded-xl px-4 py-2.5 text-sm font-semibold text-[#475569] hover:bg-[#F1F5F9]">
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!memberId || isSaving || isAlreadyCheckedIn}
+            onClick={() => onSubmit(memberId)}
+            className="inline-flex items-center gap-2 rounded-xl bg-[#0F172A] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1E293B] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <LogIn className="size-4" />
+            {isSaving ? "Recording..." : "Record Check-In"}
+          </button>
+        </div>
+      </motion.div>
     </motion.div>
-  </motion.div>;
+  );
 }
 
 export function AttendanceModule() {
@@ -49,23 +143,118 @@ export function AttendanceModule() {
   const membersQuery = useQuery({ queryKey: ["members", "attendance"], queryFn: () => listMembers({ page: 1, limit: 100 }) });
   const plansQuery = useQuery({ queryKey: ["membership-plans", "active"], queryFn: listActiveMembershipPlans });
   const members = membersQuery.data?.members ?? emptyMembers;
-  const memberById = useMemo(() => new Map(members.map((member) => [member.memberId, member])), [members]);
+  const memberById = useMemo(() => {
+    const map = new Map<string, Member>();
+    for (const member of members) {
+      if (member.memberId) {
+        map.set(member.memberId.toLowerCase(), member);
+        map.set(member.memberId.toUpperCase(), member);
+      }
+      if (member.id) {
+        map.set(member.id.toLowerCase(), member);
+      }
+    }
+    return map;
+  }, [members]);
   const planById = useMemo(() => new Map((plansQuery.data ?? []).map((plan) => [plan.id, plan])), [plansQuery.data]);
+
+  const getMemberForRecord = (record: Attendance) => {
+    if (record.memberId && memberById.has(record.memberId.toLowerCase())) {
+      return memberById.get(record.memberId.toLowerCase());
+    }
+    if ((record as any).memberUuid && memberById.has(String((record as any).memberUuid).toLowerCase())) {
+      return memberById.get(String((record as any).memberUuid).toLowerCase());
+    }
+    return null;
+  };
+
+  const normalizeDate = (val: string | Date | null | undefined) => {
+    if (!val) return "";
+    if (val instanceof Date) {
+      const y = val.getFullYear();
+      const m = String(val.getMonth() + 1).padStart(2, "0");
+      const d = String(val.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+    const str = String(val).trim();
+    if (str.includes("T")) {
+      const d = new Date(str);
+      if (!Number.isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      }
+    }
+    const match = str.match(/^(\d{4}-\d{2}-\d{2})/);
+    return match ? match[1] : str;
+  };
+
   const attendance = attendanceQuery.data?.attendance ?? [];
+  const isRecordCurrentlyIn = (record: Attendance) =>
+    !record.checkOutTime && (Date.now() - new Date(record.checkInTime).getTime() < 4 * 60 * 60 * 1000);
+
   const displayed = attendance.filter((record) => {
-    const member = memberById.get(record.memberId);
-    const memberIdentifier = member?.memberId.toLowerCase() ?? record.memberId.toLowerCase();
-    const status = record.checkOutTime ? "checked-out" : "present";
-    return record.attendanceDate === date && (!search || memberIdentifier.includes(search.toLowerCase())) && (planFilter === "all" || member?.membershipPlanId === planFilter) && (statusFilter === "all" || statusFilter === status);
+    const member = getMemberForRecord(record);
+    const memberIdentifier = member?.memberId.toLowerCase() ?? record.memberId?.toLowerCase() ?? "";
+    const memberName = member ? `${member.firstName} ${member.lastName}`.toLowerCase() : "";
+    const status = isRecordCurrentlyIn(record) ? "present" : "checked-out";
+    const matchesDate = normalizeDate(record.attendanceDate) === date;
+    const matchesSearch = !search || memberIdentifier.includes(search.toLowerCase()) || memberName.includes(search.toLowerCase());
+    const matchesPlan = planFilter === "all" || member?.membershipPlanId === planFilter;
+    const matchesStatus = statusFilter === "all" || statusFilter === status;
+    return matchesDate && matchesSearch && matchesPlan && matchesStatus;
   });
-  const todayRecords = attendance.filter((record) => record.attendanceDate === today());
-  const presentCount = todayRecords.filter((record) => !record.checkOutTime).length;
-  const checkedInMemberIds = new Set(todayRecords.map((record) => record.memberId));
+
+  const todayRecords = attendance.filter((record) => normalizeDate(record.attendanceDate) === today());
+  const presentCount = todayRecords.filter(isRecordCurrentlyIn).length;
+  const checkedInMemberIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const record of todayRecords) {
+      if (record.memberId) {
+        set.add(record.memberId);
+        set.add(record.memberId.toUpperCase());
+        set.add(record.memberId.toLowerCase());
+      }
+      if ((record as any).memberUuid) {
+        set.add((record as any).memberUuid);
+        set.add(String((record as any).memberUuid).toLowerCase());
+      }
+    }
+    return set;
+  }, [todayRecords]);
+
   const activeMembers = members.filter((member) => member.isActive);
-  const absentCount = Math.max(activeMembers.length - checkedInMemberIds.size, 0);
-  const attendanceRate = activeMembers.length ? Math.round((checkedInMemberIds.size / activeMembers.length) * 100) : 0;
+  const absentCount = Math.max(activeMembers.length - todayRecords.length, 0);
+  const attendanceRate = activeMembers.length ? Math.min(100, Math.round((todayRecords.length / activeMembers.length) * 100)) : 0;
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["attendance"] });
-  const recordMutation = useMutation({ mutationFn: (memberId: string) => createAttendance({ memberId, checkInTime: new Date().toISOString(), attendanceDate: today(), attendanceMethod: "Manual" }), onSuccess: () => { toast.success("Check-in recorded."); setIsModalOpen(false); refresh(); }, onError: (error) => { console.error("Unable to record attendance.", error); toast.error("Unable to record attendance. Please try again."); } });
+  const recordMutation = useMutation({
+    mutationFn: (memberId: string) =>
+      createAttendance({
+        memberId,
+        checkInTime: new Date().toISOString(),
+        attendanceDate: today(),
+        attendanceMethod: "Manual",
+      }),
+    onSuccess: () => {
+      toast.success("Attendance recorded successfully.");
+      setIsModalOpen(false);
+      refresh();
+    },
+    onError: (error: any) => {
+      console.error("Unable to record attendance.", error);
+      const apiMessage =
+        error?.response?.data?.error?.message ||
+        error?.response?.data?.message;
+      if (error?.response?.status === 409) {
+        toast.error(apiMessage || "Member has already been checked in today.");
+      } else if (apiMessage && !apiMessage.includes("AxiosError") && !apiMessage.includes("status code")) {
+        toast.error(apiMessage);
+      } else {
+        toast.error("Something went wrong. Please try again.");
+      }
+    },
+  });
   const checkoutMutation = useMutation({ mutationFn: (record: Attendance) => updateAttendance(record.id, { checkOutTime: new Date().toISOString() }), onSuccess: () => { toast.success("Check-out recorded."); refresh(); }, onError: (error) => { console.error("Unable to record check-out.", error); toast.error("Unable to record check-out. Please try again."); } });
   const latest = [...todayRecords].sort((a, b) => new Date(b.checkInTime).getTime() - new Date(a.checkInTime).getTime()).slice(0, 4);
   const peakHour = todayRecords.length
@@ -106,8 +295,19 @@ export function AttendanceModule() {
     </section>
     <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{stats.map(({ label, value, icon: Icon, note }) => <motion.article key={label} whileHover={{ y: -3 }} className="group rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-[0_2px_5px_rgba(15,23,42,0.025)] transition-shadow hover:shadow-[0_16px_32px_rgba(15,23,42,0.08)]"><span className="grid size-10 place-items-center rounded-xl bg-[#F1F5F9] text-[#475569] transition-colors group-hover:bg-[#E2E8F0]"><Icon className="size-5" strokeWidth={1.8} /></span><p className="mt-5 text-sm font-medium text-[#64748B]">{label}</p><p className="mt-1 text-3xl font-semibold tracking-[-0.05em] text-[#0F172A]">{attendanceQuery.isLoading ? "—" : value}</p><p className="mt-2 text-xs font-medium text-[#94A3B8]">{note}</p></motion.article>)}</section>
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]"><div className="space-y-5"><section className="rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-[0_2px_5px_rgba(15,23,42,0.025)] sm:p-5"><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"><label className="relative block"><span className="sr-only">Search member</span><Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#94A3B8]" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search member" className={`${inputClass} pl-9`} /></label><label className="relative block"><CalendarDays className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#94A3B8]" /><input type="date" value={date} onChange={(event) => setDate(event.target.value)} className={`${inputClass} pl-9`} aria-label="Attendance date" /></label><label className="relative block"><select value={planFilter} onChange={(event) => setPlanFilter(event.target.value)} className={inputClass} aria-label="Membership filter"><option value="all">All memberships</option>{(plansQuery.data ?? []).map((plan) => <option key={plan.id} value={plan.id}>{plan.planName}</option>)}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#94A3B8]" /></label><label className="relative block"><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className={inputClass} aria-label="Status filter"><option value="all">All statuses</option><option value="present">Present</option><option value="checked-out">Checked out</option></select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-[#94A3B8]" /></label></div></section>
-    <section className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-[0_2px_5px_rgba(15,23,42,0.025)]"><div className="flex items-center justify-between border-b border-[#E2E8F0] px-5 py-4"><div><h2 className="font-semibold text-[#0F172A]">Attendance log</h2><p className="mt-1 text-xs text-[#64748B]">{date === today() ? "Today’s member activity" : `Records for ${date}`}</p></div><span className="rounded-full bg-[#F1F5F9] px-2.5 py-1 text-xs font-semibold text-[#64748B]">{displayed.length} records</span></div>{attendanceQuery.isLoading || membersQuery.isLoading ? <div className="space-y-4 p-5">{[1, 2, 3, 4].map((item) => <div key={item} className="h-14 animate-pulse rounded-xl bg-[#F1F5F9]" />)}</div> : attendanceQuery.isError || membersQuery.isError ? <p className="p-6 text-sm text-[#64748B]">Unable to load attendance records. Please refresh and try again.</p> : displayed.length === 0 ? <div className="px-6 py-16 text-center"><span className="mx-auto grid size-14 place-items-center rounded-2xl bg-[#F1F5F9] text-[#475569]"><CalendarDays className="size-7" /></span><h3 className="mt-5 text-lg font-semibold text-[#0F172A]">No attendance records found.</h3><p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#64748B]">When members check in, their activity will appear here with a clear record of their visit.</p></div> : <div className="overflow-x-auto"><table className="min-w-[760px] w-full text-left"><thead className="bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wide text-[#64748B]"><tr><th className="px-5 py-3">Member</th><th className="px-4 py-3">Check-in</th><th className="px-4 py-3">Check-out</th><th className="px-4 py-3">Membership</th><th className="px-4 py-3">Status</th><th className="px-5 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-[#E2E8F0]">{displayed.map((record) => { const member = memberById.get(record.memberId); const plan = member ? planById.get(member.membershipPlanId) : undefined; const present = !record.checkOutTime; return <tr key={record.id} className="transition hover:bg-[#F8FAFC]"><td className="px-5 py-4"><div className="flex items-center gap-3"><span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-[#E2E8F0] bg-cover bg-center text-xs font-bold text-[#475569]" style={member?.profilePhotoUrl ? { backgroundImage: `url(${member.profilePhotoUrl})` } : undefined}>{member?.profilePhotoUrl ? <span className="sr-only">{member.firstName} {member.lastName}</span> : initials(member)}</span><div><p className="text-sm font-semibold text-[#0F172A]">{member ? `${member.firstName} ${member.lastName}` : "Unknown member"}</p><p className="mt-0.5 text-xs text-[#94A3B8]">{record.attendanceMethod} check-in</p></div></div></td><td className="px-4 py-4 text-sm text-[#475569]">{formatTime(record.checkInTime)}</td><td className="px-4 py-4 text-sm text-[#475569]">{formatTime(record.checkOutTime)}</td><td className="px-4 py-4"><span className="rounded-full bg-[#F1F5F9] px-2.5 py-1 text-xs font-semibold text-[#475569]">{plan?.planName ?? "—"}</span></td><td className="px-4 py-4"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${present ? "bg-emerald-50 text-emerald-700" : "bg-[#F1F5F9] text-[#475569]"}`}><span className={`size-1.5 rounded-full ${present ? "bg-emerald-500" : "bg-[#94A3B8]"}`} />{present ? "Present" : "Checked out"}</span></td><td className="px-5 py-4 text-right">{present ? <button type="button" onClick={() => checkoutMutation.mutate(record)} disabled={checkoutMutation.isPending} className="rounded-lg px-3 py-2 text-xs font-semibold text-[#475569] transition hover:bg-[#F1F5F9] hover:text-[#0F172A]">Check out</button> : <button type="button" className="rounded-lg p-2 text-[#94A3B8] hover:bg-[#F1F5F9]" aria-label="Attendance actions"><MoreHorizontal className="size-4" /></button>}</td></tr>; })}</tbody></table></div>}</section></div>
-    <aside className="space-y-5"><section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-[0_2px_5px_rgba(15,23,42,0.025)]"><h2 className="font-semibold text-[#0F172A]">Today&apos;s summary</h2><div className="mt-5 space-y-4"><div className="flex justify-between text-sm"><span className="text-[#64748B]">Check-ins</span><span className="font-semibold text-[#0F172A]">{todayRecords.length}</span></div><div className="flex justify-between text-sm"><span className="text-[#64748B]">Currently present</span><span className="font-semibold text-[#0F172A]">{presentCount}</span></div><div className="flex justify-between text-sm"><span className="text-[#64748B]">Attendance rate</span><span className="font-semibold text-[#0F172A]">{attendanceRate}%</span></div></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-[#E2E8F0]"><div className="h-full rounded-full bg-[#334155] transition-all duration-500" style={{ width: `${attendanceRate}%` }} /></div></section><section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-[0_2px_5px_rgba(15,23,42,0.025)]"><div className="flex items-center gap-2"><Clock3 className="size-4 text-[#64748B]" /><h2 className="font-semibold text-[#0F172A]">Peak hours</h2></div><p className="mt-4 text-2xl font-semibold tracking-[-0.04em] text-[#0F172A]">{peakHour === null ? "—" : new Intl.DateTimeFormat("en-IN", { hour: "numeric" }).format(new Date().setHours(Number(peakHour), 0, 0, 0))}</p><p className="mt-1 text-sm text-[#64748B]">{peakHour === null ? "Insights will appear as visits begin." : "Busiest recorded check-in hour today."}</p></section><section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-[0_2px_5px_rgba(15,23,42,0.025)]"><h2 className="font-semibold text-[#0F172A]">Latest check-ins</h2><div className="mt-4 space-y-4">{latest.length ? latest.map((record) => { const member = memberById.get(record.memberId); return <div key={record.id} className="flex items-center gap-3"><span className="grid size-8 place-items-center rounded-full bg-[#E2E8F0] text-[10px] font-bold text-[#475569]">{initials(member)}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-[#334155]">{member ? `${member.firstName} ${member.lastName}` : "Unknown member"}</p><p className="text-xs text-[#94A3B8]">{formatTime(record.checkInTime)}</p></div></div>; }) : <p className="text-sm leading-6 text-[#64748B]">No check-ins to show yet.</p>}</div></section><section className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-5"><div><p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Check-In Method</p><p className="mt-1 text-sm leading-5 text-[#64748B]">Manual attendance and Digital QR pass check-in are enabled and ready.</p></div><div className="mt-4 space-y-2">{[{ label: "Manual Check-In", detail: "Enabled", icon: LogIn, enabled: true }, { label: "QR Check-In", detail: "Enabled", icon: QrCode, enabled: true }].map(({ label, detail, icon: Icon, enabled }) => <div key={label} className={`flex items-center gap-3 rounded-xl border p-3 ${enabled ? "border-[#CBD5E1] bg-white text-[#334155]" : "border-[#E2E8F0] bg-white/70 text-[#64748B]"}`}><span className={`grid size-8 place-items-center rounded-lg ${enabled ? "bg-[#0F172A] text-white" : "bg-[#F1F5F9] text-[#64748B]"}`}><Icon className="size-4" /></span><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{label}</p><p className="text-xs text-[#94A3B8]">{detail}</p></div>{enabled ? <Check className="size-4 text-emerald-600" /> : <span className="rounded-full bg-[#F1F5F9] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[#64748B]">{detail}</span>}</div>)}</div></section></aside></div>
-    <AnimatePresence>{isModalOpen && <RecordAttendanceModal members={activeMembers} isSaving={recordMutation.isPending} onClose={() => setIsModalOpen(false)} onSubmit={(memberId) => recordMutation.mutate(memberId)} />}</AnimatePresence>
+    <section className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-[0_2px_5px_rgba(15,23,42,0.025)]"><div className="flex items-center justify-between border-b border-[#E2E8F0] px-5 py-4"><div><h2 className="font-semibold text-[#0F172A]">Attendance log</h2><p className="mt-1 text-xs text-[#64748B]">{date === today() ? "Today’s member activity" : `Records for ${date}`}</p></div><span className="rounded-full bg-[#F1F5F9] px-2.5 py-1 text-xs font-semibold text-[#64748B]">{displayed.length} records</span></div>{attendanceQuery.isLoading || membersQuery.isLoading ? <div className="space-y-4 p-5">{[1, 2, 3, 4].map((item) => <div key={item} className="h-14 animate-pulse rounded-xl bg-[#F1F5F9]" />)}</div> : attendanceQuery.isError || membersQuery.isError ? <p className="p-6 text-sm text-[#64748B]">Unable to load attendance records. Please refresh and try again.</p> : displayed.length === 0 ? <div className="px-6 py-16 text-center"><span className="mx-auto grid size-14 place-items-center rounded-2xl bg-[#F1F5F9] text-[#475569]"><CalendarDays className="size-7" /></span><h3 className="mt-5 text-lg font-semibold text-[#0F172A]">No attendance records found.</h3><p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[#64748B]">When members check in, their activity will appear here with a clear record of their visit.</p></div> : <div className="overflow-x-auto"><table className="min-w-[760px] w-full text-left"><thead className="bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wide text-[#64748B]"><tr><th className="px-5 py-3">Member</th><th className="px-4 py-3">Check-in</th><th className="px-4 py-3">Check-out</th><th className="px-4 py-3">Membership</th><th className="px-4 py-3">Status</th><th className="px-5 py-3 text-right">Actions</th></tr></thead><tbody className="divide-y divide-[#E2E8F0]">{displayed.map((record) => { const member = getMemberForRecord(record); const plan = member ? planById.get(member.membershipPlanId) : undefined; const present = isRecordCurrentlyIn(record); return <tr key={record.id} className="transition hover:bg-[#F8FAFC]"><td className="px-5 py-4"><div className="flex items-center gap-3"><span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-[#E2E8F0] bg-cover bg-center text-xs font-bold text-[#475569]" style={member?.profilePhotoUrl ? { backgroundImage: `url(${member.profilePhotoUrl})` } : undefined}>{member?.profilePhotoUrl ? <span className="sr-only">{member.firstName} {member.lastName}</span> : initials(member)}</span><div><p className="text-sm font-semibold text-[#0F172A]">{member ? `${member.firstName} ${member.lastName}` : "Unknown member"}</p><p className="mt-0.5 text-xs text-[#94A3B8]">{record.attendanceMethod} check-in</p></div></div></td><td className="px-4 py-4 text-sm text-[#475569]">{formatTime(record.checkInTime)}</td><td className="px-4 py-4 text-sm text-[#475569]">{formatTime(record.checkOutTime)}</td><td className="px-4 py-4"><span className="rounded-full bg-[#F1F5F9] px-2.5 py-1 text-xs font-semibold text-[#475569]">{plan?.planName ?? "—"}</span></td><td className="px-4 py-4"><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${present ? "bg-emerald-50 text-emerald-700" : "bg-[#F1F5F9] text-[#475569]"}`}><span className={`size-1.5 rounded-full ${present ? "bg-emerald-500" : "bg-[#94A3B8]"}`} />{present ? "Present" : "Checked out"}</span></td><td className="px-5 py-4 text-right">{present ? <button type="button" onClick={() => checkoutMutation.mutate(record)} disabled={checkoutMutation.isPending} className="rounded-lg px-3 py-2 text-xs font-semibold text-[#475569] transition hover:bg-[#F1F5F9] hover:text-[#0F172A]">Check out</button> : <button type="button" className="rounded-lg p-2 text-[#94A3B8] hover:bg-[#F1F5F9]" aria-label="Attendance actions"><MoreHorizontal className="size-4" /></button>}</td></tr>; })}</tbody></table></div>}</section></div>
+    <aside className="space-y-5"><section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-[0_2px_5px_rgba(15,23,42,0.025)]"><h2 className="font-semibold text-[#0F172A]">Today&apos;s summary</h2><div className="mt-5 space-y-4"><div className="flex justify-between text-sm"><span className="text-[#64748B]">Check-ins</span><span className="font-semibold text-[#0F172A]">{todayRecords.length}</span></div><div className="flex justify-between text-sm"><span className="text-[#64748B]">Currently present</span><span className="font-semibold text-[#0F172A]">{presentCount}</span></div><div className="flex justify-between text-sm"><span className="text-[#64748B]">Attendance rate</span><span className="font-semibold text-[#0F172A]">{attendanceRate}%</span></div></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-[#E2E8F0]"><div className="h-full rounded-full bg-[#334155] transition-all duration-500" style={{ width: `${attendanceRate}%` }} /></div></section><section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-[0_2px_5px_rgba(15,23,42,0.025)]"><div className="flex items-center gap-2"><Clock3 className="size-4 text-[#64748B]" /><h2 className="font-semibold text-[#0F172A]">Peak hours</h2></div><p className="mt-4 text-2xl font-semibold tracking-[-0.04em] text-[#0F172A]">{peakHour === null ? "—" : new Intl.DateTimeFormat("en-IN", { hour: "numeric" }).format(new Date().setHours(Number(peakHour), 0, 0, 0))}</p><p className="mt-1 text-sm text-[#64748B]">{peakHour === null ? "Insights will appear as visits begin." : "Busiest recorded check-in hour today."}</p></section><section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-[0_2px_5px_rgba(15,23,42,0.025)]"><h2 className="font-semibold text-[#0F172A]">Latest check-ins</h2><div className="mt-4 space-y-4">{latest.length ? latest.map((record) => { const member = getMemberForRecord(record); return <div key={record.id} className="flex items-center gap-3"><span className="grid size-8 place-items-center rounded-full bg-[#E2E8F0] text-[10px] font-bold text-[#475569]">{initials(member)}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-[#334155]">{member ? `${member.firstName} ${member.lastName}` : "Unknown member"}</p><p className="text-xs text-[#94A3B8]">{formatTime(record.checkInTime)}</p></div></div>; }) : <p className="text-sm leading-6 text-[#64748B]">No check-ins to show yet.</p>}</div></section><section className="rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] p-5"><div><p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">Check-In Method</p><p className="mt-1 text-sm leading-5 text-[#64748B]">Manual attendance and Digital QR pass check-in are enabled and ready.</p></div><div className="mt-4 space-y-2">{[{ label: "Manual Check-In", detail: "Enabled", icon: LogIn, enabled: true }, { label: "QR Check-In", detail: "Enabled", icon: QrCode, enabled: true }].map(({ label, detail, icon: Icon, enabled }) => <div key={label} className={`flex items-center gap-3 rounded-xl border p-3 ${enabled ? "border-[#CBD5E1] bg-white text-[#334155]" : "border-[#E2E8F0] bg-white/70 text-[#64748B]"}`}><span className={`grid size-8 place-items-center rounded-lg ${enabled ? "bg-[#0F172A] text-white" : "bg-[#F1F5F9] text-[#64748B]"}`}><Icon className="size-4" /></span><div className="min-w-0 flex-1"><p className="text-sm font-semibold">{label}</p><p className="text-xs text-[#94A3B8]">{detail}</p></div>{enabled ? <Check className="size-4 text-emerald-600" /> : <span className="rounded-full bg-[#F1F5F9] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[#64748B]">{detail}</span>}</div>)}</div></section></aside></div>
+    <AnimatePresence>
+      {isModalOpen && (
+        <RecordAttendanceModal
+          members={activeMembers}
+          plans={plansQuery.data ?? []}
+          checkedInMemberIds={checkedInMemberIds}
+          isSaving={recordMutation.isPending}
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={(memberId) => recordMutation.mutate(memberId)}
+        />
+      )}
+    </AnimatePresence>
   </motion.div>;
 }

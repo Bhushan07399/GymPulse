@@ -18,6 +18,9 @@ classPlansRouter.put('/plans/:id', ...staffAllowed, asyncHandler(classPlansContr
 classPlansRouter.delete('/plans/:id', ...staffAllowed, asyncHandler(classPlansController.deleteClassPlan));
 
 classPlansRouter.post('/memberships/enroll', ...staffAllowed, asyncHandler(classPlansController.enrollMember));
+classPlansRouter.get('/memberships', ...staffAllowed, asyncHandler(classPlansController.listAllClassMembers));
+classPlansRouter.get('/payments', ...staffAllowed, asyncHandler(classPlansController.listAllClassPayments));
+classPlansRouter.delete('/payments/:id', ...staffAllowed, asyncHandler(classPlansController.deleteClassPayment));
 classPlansRouter.get('/payments/outstanding', ...staffAllowed, asyncHandler(classPlansController.listClassOutstandingDues));
 classPlansRouter.post('/payments/record-dues', ...staffAllowed, asyncHandler(classPlansController.recordClassDuesPayment));
 classPlansRouter.get('/revenue-overview', ...generalStaffAllowed, asyncHandler(classPlansController.getBusinessRevenueOverview));

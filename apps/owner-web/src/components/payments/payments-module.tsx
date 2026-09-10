@@ -2,39 +2,66 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { CalendarDays, CreditCard, FileText, Filter, MoreHorizontal, Plus, ReceiptText, Search, Sparkles, Users, Wallet, X } from "lucide-react";
+import {
+  CalendarDays,
+  Check,
+  CreditCard,
+  Download,
+  Edit3,
+  Eye,
+  FileText,
+  Filter,
+  MoreHorizontal,
+  Plus,
+  Printer,
+  ReceiptText,
+  Search,
+  Sparkles,
+  Trash2,
+  Users,
+  Wallet,
+  X,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 
 import { AUTH_TOKEN_KEY } from "@/src/lib/api-client";
+import { getGymProfile, type GymProfile } from "@/src/services/gym-settings.service";
 import { listMembershipPlans } from "@/src/services/membership-plans.service";
 import { getMember, listMembers } from "@/src/services/members.service";
-import { createPayment, getOutstandingPayments, listPayments } from "@/src/services/payments.service";
+import {
+  createPayment,
+  deletePayment,
+  getOutstandingPayments,
+  listPayments,
+  updatePayment,
+} from "@/src/services/payments.service";
 import type { Member, MembershipPlan } from "@/src/types/member";
+import type { Payment } from "@/src/types/payment";
 import { getApiErrorMessage } from "@/src/utils/get-api-error-message";
+import {
+  formatBusinessDate,
+  formatDateTime,
+  formatMoney,
+  getGymInitials,
+  renderReceiptDocumentHtml,
+  type ReceiptDocumentOptions,
+} from "@/src/utils/business-document";
 
-const money = (value: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(value));
+const money = (value: number | string) => formatMoney(value);
+const safeDateFormat = (value: string | Date | null | undefined) => formatBusinessDate(value);
 
-const safeParseDate = (value: string | Date | null | undefined) => {
+function safeParseDate(value: string | null | undefined): Date | null {
   if (!value) return null;
-
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? null : value;
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const [, y, m, d] = match;
+    const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
+    return Number.isNaN(dateObj.getTime()) ? null : dateObj;
   }
-
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-
-  const parsed = new Date(`${trimmed}T00:00:00`);
+  const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
-const safeDateFormat = (value: string | Date | null | undefined) => {
-  const parsed = safeParseDate(value);
-  if (!parsed) return "—";
-
-  return new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric" }).format(parsed);
-};
+}
 
 const input = "w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5 text-sm text-[#0F172A] outline-none transition focus:border-[#94A3B8] focus:bg-white focus:ring-4 focus:ring-slate-100";
 
@@ -371,6 +398,619 @@ function PaymentModal({
   );
 }
 
+function ViewPaymentModal({
+  payment,
+  member,
+  plan,
+  onClose,
+  onOpenReceipt,
+  onOpenEdit,
+}: {
+  payment: Payment;
+  member?: Member;
+  plan?: MembershipPlan;
+  onClose: () => void;
+  onOpenReceipt: () => void;
+  onOpenEdit: () => void;
+}) {
+  const memberName = payment.memberName || (member ? `${member.firstName} ${member.lastName}` : "Member");
+  const memberId = payment.memberId || (member ? member.memberId : "—");
+  const planName = payment.membershipPlanName || plan?.planName || "—";
+  const transactionId = payment.transactionReference || payment.id;
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/60 p-4 backdrop-blur-xs">
+      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-2.5">
+            <span className="grid size-9 place-items-center rounded-xl bg-slate-100 text-slate-700">
+              <Eye className="size-4" />
+            </span>
+            <div>
+              <h3 className="font-bold text-lg text-[#0F172A]">Payment Details</h3>
+              <p className="text-xs text-slate-500 font-medium">Transaction and ledger breakdown</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-4 text-sm">
+          <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4">
+            <div>
+              <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Member Name</span>
+              <span className="font-bold text-slate-900 text-base">{memberName}</span>
+            </div>
+            <div>
+              <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Member ID</span>
+              <span className="font-mono font-bold text-slate-700">{memberId}</span>
+              {member?.phone && <span className="block text-xs text-slate-500">{member.phone}</span>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 px-1">
+            <div>
+              <span className="block text-xs text-slate-500 font-medium">Transaction ID</span>
+              <span className="font-mono text-xs font-bold text-slate-800 break-all">{transactionId}</span>
+            </div>
+            <div>
+              <span className="block text-xs text-slate-500 font-medium">Membership Plan</span>
+              <span className="font-semibold text-slate-800">{planName}</span>
+            </div>
+            <div>
+              <span className="block text-xs text-slate-500 font-medium">Amount Paid</span>
+              <span className="text-lg font-extrabold text-emerald-600">{money(payment.totalAmount)}</span>
+            </div>
+            <div>
+              <span className="block text-xs text-slate-500 font-medium">Payment Date</span>
+              <span className="font-medium text-slate-800">{formatBusinessDate(payment.paymentDate || (payment as any).payment_date || payment.createdAt)}</span>
+            </div>
+            <div>
+              <span className="block text-xs text-slate-500 font-medium">Payment Method</span>
+              <span className="font-medium text-slate-800">{payment.paymentMethod}</span>
+            </div>
+            <div>
+              <span className="block text-xs text-slate-500 font-medium">Payment Status</span>
+              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ${
+                payment.paymentStatus === "Paid" ? "bg-emerald-50 text-emerald-700" :
+                payment.paymentStatus === "Pending" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-700"
+              }`}>
+                {payment.paymentStatus}
+              </span>
+            </div>
+          </div>
+
+          {(Number(payment.discountAmount || 0) > 0 || Number(payment.taxAmount || 0) > 0 || Number(payment.remainingAmount || 0) > 0) && (
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs space-y-1">
+              <div className="flex justify-between text-slate-500">
+                <span>Plan Price:</span>
+                <span>{money(plan?.price ?? payment.totalAmount)}</span>
+              </div>
+              {Number(payment.discountAmount || 0) > 0 && (
+                <div className="flex justify-between text-rose-600">
+                  <span>Discount:</span>
+                  <span>-{money(payment.discountAmount || 0)}</span>
+                </div>
+              )}
+              {Number(payment.taxAmount || 0) > 0 && (
+                <div className="flex justify-between text-slate-600">
+                  <span>Tax / GST:</span>
+                  <span>+{money(payment.taxAmount || 0)}</span>
+                </div>
+              )}
+              {Number(payment.remainingAmount || 0) > 0 && (
+                <div className="flex justify-between text-amber-700 font-bold border-t border-slate-200 pt-1">
+                  <span>Remaining Dues:</span>
+                  <span>{money(payment.remainingAmount || 0)}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {payment.notes && (
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
+              <span className="block font-bold text-slate-700 mb-0.5">Notes:</span>
+              {payment.notes}
+            </div>
+          )}
+
+          {payment.createdAt && (
+            <p className="text-right text-[11px] text-slate-400 font-medium">
+              Recorded at {formatDateTime(payment.createdAt)}
+            </p>
+          )}
+        </div>
+
+        <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-4">
+          <button
+            onClick={onOpenReceipt}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs"
+          >
+            <ReceiptText className="size-3.5 text-slate-500" />
+            <span>Open Receipt</span>
+          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onOpenEdit}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs"
+            >
+              <Edit3 className="size-3.5 text-slate-500" />
+              <span>Edit</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-800"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function ReceiptModal({
+  payment,
+  member,
+  plan,
+  gymProfile,
+  onClose,
+}: {
+  payment: Payment;
+  member?: Member;
+  plan?: MembershipPlan;
+  gymProfile?: GymProfile | null;
+  onClose: () => void;
+}) {
+  const memberName = payment.memberName || (member ? `${member.firstName} ${member.lastName}` : "Member");
+  const memberId = payment.memberId || (member ? member.memberId : "—");
+  const memberPhone = member?.phone || null;
+  const planName = payment.membershipPlanName || plan?.planName || "Gym Membership";
+  const receiptNumber = payment.transactionReference || `RCP-${payment.id.slice(0, 8).toUpperCase()}`;
+  const gymName = gymProfile?.name || "Fitness Center";
+  const gymAddress = [gymProfile?.address, gymProfile?.city, gymProfile?.state, gymProfile?.pincode].filter(Boolean).join(", ") || "India";
+  const gymPhone = gymProfile?.phone || "—";
+  const gymGst = gymProfile?.gstNumber || null;
+  const initials = getGymInitials(gymName);
+
+  const receiptDocOptions: ReceiptDocumentOptions = {
+    gymProfile: gymProfile ? {
+      name: gymProfile.name,
+      logoUrl: gymProfile.logoUrl,
+      address: gymProfile.address,
+      city: gymProfile.city,
+      state: gymProfile.state,
+      country: gymProfile.country,
+      pincode: gymProfile.pincode,
+      phone: gymProfile.phone,
+      gstNumber: gymProfile.gstNumber,
+    } : null,
+    receiptNumber,
+    transactionId: payment.transactionReference || payment.id,
+    paymentDate: formatBusinessDate(payment.paymentDate || (payment as any).payment_date || payment.createdAt),
+    createdAt: payment.createdAt ? formatDateTime(payment.createdAt) : null,
+    member: {
+      name: memberName,
+      memberId,
+      phone: memberPhone,
+    },
+    membership: {
+      planName,
+      period: plan?.durationInDays ? `${plan.durationInDays} Days` : null,
+    },
+    paymentMethod: payment.paymentMethod || "Cash",
+    paymentStatus: payment.paymentStatus || "Paid",
+    notes: payment.notes || null,
+    financials: {
+      planAmount: Number(plan?.price ?? payment.totalAmount),
+      discountAmount: Number(payment.discountAmount || 0),
+      taxAmount: Number(payment.taxAmount || 0),
+      paidAmount: Number(payment.totalAmount),
+      remainingAmount: Number(payment.remainingAmount || 0),
+    },
+  };
+
+  const handlePrint = () => {
+    const printWindow = window.open("", "_blank", "width=650,height=750");
+    if (!printWindow) {
+      toast.error("Please allow popups to print receipt.");
+      return;
+    }
+    const htmlContent = renderReceiptDocumentHtml({ ...receiptDocOptions, autoPrint: true });
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
+  const handleDownload = () => {
+    const htmlContent = renderReceiptDocumentHtml({ ...receiptDocOptions, autoPrint: false });
+    const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `receipt_${receiptNumber}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success("Receipt downloaded.");
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/60 p-4 backdrop-blur-xs">
+      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <span className="inline-flex items-center gap-1 text-xs font-bold tracking-wider text-slate-500 uppercase">
+            Official Receipt
+          </span>
+          <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+            <X className="size-5" />
+          </button>
+        </div>
+
+        {/* Printable Area Card */}
+        <div id="printable-receipt-area" className="my-4 rounded-xl border border-slate-200 bg-white p-5 text-sm shadow-inner space-y-4">
+          <div className="text-center border-b border-dashed border-slate-300 pb-3">
+            {gymProfile?.logoUrl ? (
+              <img src={gymProfile.logoUrl} alt={gymName} className="mx-auto h-12 max-w-[120px] object-contain mb-1" />
+            ) : (
+              <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-white">
+                {initials}
+              </div>
+            )}
+            <h2 className="text-lg font-extrabold text-slate-900 mt-0.5">{gymName}</h2>
+            <p className="text-xs text-slate-500 line-clamp-1">{gymAddress}</p>
+            <p className="text-[11px] text-slate-500">Phone: {gymPhone}{gymGst ? ` • GSTIN: ${gymGst}` : ''}</p>
+          </div>
+
+          <div className="rounded-lg bg-slate-900 py-1.5 text-center text-xs font-extrabold tracking-wider text-white uppercase">
+            Payment Receipt
+          </div>
+
+          <div className="space-y-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-slate-500 font-medium">Receipt / Txn ID:</span>
+              <span className="font-mono font-bold text-slate-800">{receiptNumber}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500 font-medium">Payment Date:</span>
+              <span className="font-bold text-slate-900">{formatBusinessDate(payment.paymentDate || (payment as any).payment_date || payment.createdAt)}</span>
+            </div>
+            {payment.createdAt && (
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Created At:</span>
+                <span className="font-medium text-slate-600">{formatDateTime(payment.createdAt)}</span>
+              </div>
+            )}
+            <div className="border-t border-dashed border-slate-200 pt-2 flex justify-between">
+              <span className="text-slate-500 font-medium">Member Name:</span>
+              <span className="font-bold text-slate-900">{memberName}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500 font-medium">Member ID:</span>
+              <span className="font-mono font-bold text-slate-700">{memberId}</span>
+            </div>
+            {memberPhone && (
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-medium">Phone:</span>
+                <span className="font-medium text-slate-700">{memberPhone}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-slate-500 font-medium">Membership Plan:</span>
+              <span className="font-semibold text-slate-800">{planName}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500 font-medium">Payment Method:</span>
+              <span className="font-medium text-slate-800">{payment.paymentMethod}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500 font-medium">Payment Status:</span>
+              <span className="font-bold text-emerald-700">{payment.paymentStatus}</span>
+            </div>
+            {payment.notes && (
+              <div className="flex justify-between border-t border-dashed border-slate-200 pt-2">
+                <span className="text-slate-500 font-medium">Notes:</span>
+                <span className="text-slate-700 max-w-[200px] text-right">{payment.notes}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Financial Breakdown */}
+          <div className="border-t border-dashed border-slate-200 pt-3 space-y-1.5 text-xs">
+            {Number(payment.discountAmount || 0) > 0 && (
+              <div className="flex justify-between text-slate-500">
+                <span>Discount:</span>
+                <span className="font-medium text-rose-600">-{money(payment.discountAmount || 0)}</span>
+              </div>
+            )}
+            {Number(payment.taxAmount || 0) > 0 && (
+              <div className="flex justify-between text-slate-500">
+                <span>Tax / GST:</span>
+                <span className="font-medium text-slate-700">+{money(payment.taxAmount || 0)}</span>
+              </div>
+            )}
+            {Number(payment.remainingAmount || 0) > 0 && (
+              <div className="flex justify-between text-amber-700 font-bold">
+                <span>Remaining Dues:</span>
+                <span>{money(payment.remainingAmount || 0)}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t-2 border-dashed border-slate-300 pt-3 flex items-center justify-between">
+            <span className="font-bold text-slate-700">Amount Paid</span>
+            <span className="text-2xl font-black text-emerald-600">{money(payment.totalAmount)}</span>
+          </div>
+
+          <div className="text-center pt-2 text-[11px] text-slate-400">
+            Thank you for training with {gymName}!
+          </div>
+        </div>
+
+        {/* Modal Bottom Actions */}
+        <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-4">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownload}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs"
+            >
+              <Download className="size-3.5 text-slate-500" />
+              <span>Download</span>
+            </button>
+            <button
+              onClick={handlePrint}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-bold text-white hover:bg-slate-800 shadow-2xs"
+            >
+              <Printer className="size-3.5" />
+              <span>Print Receipt</span>
+            </button>
+          </div>
+          <button onClick={onClose} className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100">
+            Close
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function EditPaymentModal({
+  payment,
+  member,
+  plan,
+  onClose,
+}: {
+  payment: Payment;
+  member?: Member;
+  plan?: MembershipPlan;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [amount, setAmount] = useState(String(payment.totalAmount));
+  const [method, setMethod] = useState<"Cash" | "UPI" | "Card" | "Bank Transfer">(payment.paymentMethod);
+  const rawDate = payment.paymentDate || (payment as any).payment_date || payment.createdAt;
+  const [date, setDate] = useState(rawDate ? String(rawDate).slice(0, 10) : "");
+  const [notes, setNotes] = useState(payment.notes || "");
+
+  const memberName = payment.memberName || (member ? `${member.firstName} ${member.lastName}` : "Member");
+  const memberId = payment.memberId || (member ? member.memberId : "—");
+  const transactionId = payment.transactionReference || payment.id;
+
+  const editMutation = useMutation({
+    mutationFn: (data: Parameters<typeof updatePayment>[1]) => updatePayment(payment.id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      queryClient.invalidateQueries({ queryKey: ["payments-outstanding"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
+      toast.success("Payment updated successfully.");
+      onClose();
+    },
+    onError: (error: any) => {
+      toast.error(getApiErrorMessage(error));
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsedAmount = Number(amount);
+    if (Number.isNaN(parsedAmount) || parsedAmount < 0) {
+      toast.error("Enter a valid payment amount.");
+      return;
+    }
+    if (!date) {
+      toast.error("Payment date is required.");
+      return;
+    }
+
+    editMutation.mutate({
+      paymentAmount: parsedAmount,
+      totalAmount: parsedAmount,
+      paymentMethod: method,
+      paymentDate: date,
+      notes: notes.trim() || null,
+    });
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/60 p-4 backdrop-blur-xs">
+      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-2.5">
+            <span className="grid size-9 place-items-center rounded-xl bg-slate-100 text-slate-700">
+              <Edit3 className="size-4" />
+            </span>
+            <div>
+              <h3 className="font-bold text-lg text-[#0F172A]">Edit Payment</h3>
+              <p className="text-xs text-slate-500 font-medium">Update amount, method, or record notes</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-5 space-y-4 text-sm">
+          {/* Read only identifiers */}
+          <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3.5 text-xs text-slate-600">
+            <div>
+              <span className="block text-slate-400 font-semibold">Member</span>
+              <span className="font-bold text-slate-900">{memberName}</span> ({memberId})
+            </div>
+            <div>
+              <span className="block text-slate-400 font-semibold">Transaction ID (Immutable)</span>
+              <span className="font-mono text-slate-700 truncate block">{transactionId}</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase text-slate-600 mb-1.5">
+              Amount Paid (₹) *
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className={input}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-600 mb-1.5">
+                Payment Method *
+              </label>
+              <select
+                value={method}
+                onChange={(e) => setMethod(e.target.value as any)}
+                className={input}
+              >
+                <option value="Cash">Cash</option>
+                <option value="UPI">UPI</option>
+                <option value="Card">Card</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase text-slate-600 mb-1.5">
+                Payment Date *
+              </label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className={input}
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase text-slate-600 mb-1.5">
+              Notes
+            </label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="Optional payment notes or remarks"
+              className={input}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={editMutation.isPending}
+              className="rounded-xl bg-slate-900 px-5 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-60"
+            >
+              {editMutation.isPending ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function DeletePaymentModal({
+  payment,
+  onClose,
+}: {
+  payment: Payment;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deletePayment(payment.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+      queryClient.invalidateQueries({ queryKey: ["payments-outstanding"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
+      toast.success("Payment deleted successfully.");
+      onClose();
+    },
+    onError: (error: any) => {
+      toast.error(getApiErrorMessage(error));
+    },
+  });
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-[#0F172A]/60 p-4 backdrop-blur-xs">
+      <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="flex items-center gap-3">
+          <span className="grid size-10 place-items-center rounded-2xl bg-rose-50 text-rose-600">
+            <Trash2 className="size-5" />
+          </span>
+          <div>
+            <h3 className="font-bold text-lg text-slate-900">Delete payment?</h3>
+            <p className="text-xs text-slate-500 font-medium">This action cannot be undone</p>
+          </div>
+        </div>
+
+        <p className="mt-4 text-xs sm:text-sm text-slate-600 leading-relaxed">
+          This will remove the payment record for <strong className="text-slate-900 font-bold">{money(payment.totalAmount)}</strong> from this transaction history.
+        </p>
+
+        <div className="mt-6 flex justify-end gap-2 border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={deleteMutation.isPending}
+            onClick={() => deleteMutation.mutate()}
+            className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700 shadow-sm disabled:opacity-60"
+          >
+            {deleteMutation.isPending ? "Deleting..." : "Delete Payment"}
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export function PaymentsModule() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -415,7 +1055,23 @@ export function PaymentsModule() {
     );
   });
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = (() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  })();
+
+  const [activeActionMenuPaymentId, setActiveActionMenuPaymentId] = useState<string | null>(null);
+  const [viewPayment, setViewPayment] = useState<Payment | null>(null);
+  const [receiptPayment, setReceiptPayment] = useState<Payment | null>(null);
+  const [editPayment, setEditPayment] = useState<Payment | null>(null);
+  const [deletePaymentItem, setDeletePaymentItem] = useState<Payment | null>(null);
+
+  const gymProfileQuery = useQuery({ queryKey: ["gym-profile"], queryFn: getGymProfile });
+  const gymProfile = gymProfileQuery.data ?? null;
+
   const summaryData = paymentsQuery.data?.summary;
   const totalRevenue = summaryData?.totalRevenue ?? 0;
   const todaysCollections = summaryData?.todaysCollections ?? 0;
@@ -701,8 +1357,8 @@ export function PaymentsModule() {
                 <table className="min-w-[900px] w-full text-left text-sm">
                   <thead className="sticky top-0 z-10 bg-[#F8FAFC] text-xs font-semibold uppercase tracking-wide text-[#64748B]">
                     <tr>
-                      {["Member", "Membership Plan", "Amount Paid", "Payment Date", "Payment Method", "Status", "Actions"].map((h) => (
-                        <th key={h} className="px-5 py-3">{h}</th>
+                      {["Member", "Membership Plan", "Amount Paid", "Payment Date", "Payment Method", "Payment Status", "Actions"].map((h) => (
+                        <th key={h} className="px-5 py-3 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -722,19 +1378,80 @@ export function PaymentsModule() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-5 py-4 text-[#475569]">{planMap.get(p.membershipPlanId)?.planName ?? "—"}</td>
-                          <td className="px-5 py-4 font-semibold text-emerald-700">{money(p.totalAmount)}</td>
-                          <td className="px-5 py-4 text-[#475569]">{safeDateFormat(p.paymentDate)}</td>
-                          <td className="px-5 py-4 text-[#475569]">{p.paymentMethod}</td>
-                          <td className="px-5 py-4">
+                          <td className="px-5 py-4 text-[#475569] whitespace-nowrap">{planMap.get(p.membershipPlanId)?.planName ?? "—"}</td>
+                          <td className="px-5 py-4 font-semibold text-emerald-700 whitespace-nowrap">{money(p.totalAmount)}</td>
+                          <td className="px-5 py-4 text-[#475569] whitespace-nowrap">{safeDateFormat(p.paymentDate || (p as any).payment_date || p.createdAt)}</td>
+                          <td className="px-5 py-4 text-[#475569] whitespace-nowrap">{p.paymentMethod}</td>
+                          <td className="px-5 py-4 whitespace-nowrap">
                             <span className="rounded-full bg-[#F1F5F9] px-2.5 py-1 text-xs font-semibold text-[#475569]">
                               {p.paymentStatus}
                             </span>
                           </td>
-                          <td className="px-5 py-4">
-                            <button className="rounded-lg p-2 text-[#64748B] hover:bg-[#F1F5F9]" aria-label="Payment actions">
+                          <td className="relative px-5 py-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => setActiveActionMenuPaymentId(activeActionMenuPaymentId === p.id ? null : p.id)}
+                              className="rounded-lg p-2 text-[#64748B] hover:bg-[#F1F5F9] focus:outline-none"
+                              aria-label="Payment actions"
+                            >
                               <MoreHorizontal className="size-4" />
                             </button>
+
+                            {activeActionMenuPaymentId === p.id && (
+                              <>
+                                <div
+                                  className="fixed inset-0 z-20"
+                                  onClick={() => setActiveActionMenuPaymentId(null)}
+                                />
+                                <div className="absolute right-5 top-12 z-30 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl text-left">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveActionMenuPaymentId(null);
+                                      setViewPayment(p);
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                                  >
+                                    <Eye className="size-3.5 text-slate-500" />
+                                    <span>View Payment</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveActionMenuPaymentId(null);
+                                      setReceiptPayment(p);
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                                  >
+                                    <ReceiptText className="size-3.5 text-slate-500" />
+                                    <span>Receipt</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveActionMenuPaymentId(null);
+                                      setEditPayment(p);
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                                  >
+                                    <Edit3 className="size-3.5 text-slate-500" />
+                                    <span>Edit Payment</span>
+                                  </button>
+                                  <div className="my-1 border-t border-slate-100" />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActiveActionMenuPaymentId(null);
+                                      setDeletePaymentItem(p);
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                                  >
+                                    <Trash2 className="size-3.5 text-rose-500" />
+                                    <span>Delete Payment</span>
+                                  </button>
+                                </div>
+                              </>
+                            )}
                           </td>
                         </tr>
                       );
@@ -776,6 +1493,47 @@ export function PaymentsModule() {
             setPaymentMethod={setPaymentMethod}
             notes={notes}
             setNotes={setNotes}
+          />
+        )}
+        {viewPayment && (
+          <ViewPaymentModal
+            payment={viewPayment}
+            member={memberMap.get(viewPayment.memberId)}
+            plan={planMap.get(viewPayment.membershipPlanId)}
+            onClose={() => setViewPayment(null)}
+            onOpenReceipt={() => {
+              const current = viewPayment;
+              setViewPayment(null);
+              setReceiptPayment(current);
+            }}
+            onOpenEdit={() => {
+              const current = viewPayment;
+              setViewPayment(null);
+              setEditPayment(current);
+            }}
+          />
+        )}
+        {receiptPayment && (
+          <ReceiptModal
+            payment={receiptPayment}
+            member={memberMap.get(receiptPayment.memberId)}
+            plan={planMap.get(receiptPayment.membershipPlanId)}
+            gymProfile={gymProfile}
+            onClose={() => setReceiptPayment(null)}
+          />
+        )}
+        {editPayment && (
+          <EditPaymentModal
+            payment={editPayment}
+            member={memberMap.get(editPayment.memberId)}
+            plan={planMap.get(editPayment.membershipPlanId)}
+            onClose={() => setEditPayment(null)}
+          />
+        )}
+        {deletePaymentItem && (
+          <DeletePaymentModal
+            payment={deletePaymentItem}
+            onClose={() => setDeletePaymentItem(null)}
           />
         )}
       </AnimatePresence>

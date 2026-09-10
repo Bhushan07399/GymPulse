@@ -50,6 +50,7 @@ export type MembershipPlan = {
   price: number;
   description: string | null;
   isActive: boolean;
+  membersCount?: number;
   createdAt: string;
   updatedAt: string;
 };

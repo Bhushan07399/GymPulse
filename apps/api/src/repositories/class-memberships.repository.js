@@ -165,7 +165,7 @@ const listClassOutstandingDues = async (gymId) => {
     JOIN classes c ON c.id = cp.class_id
     LEFT JOIN class_plans cplan ON cplan.id = cp.class_plan_id
     LEFT JOIN class_memberships cm ON cm.id = cp.class_membership_id
-    WHERE cp.gym_id = $1 AND cp.remaining_amount > 0
+    WHERE cp.gym_id = $1 AND cp.remaining_amount > 0 AND cp.deleted_at IS NULL
     ORDER BY cp.payment_date DESC
   `;
   const result = await pool.query(query, [gymId]);
@@ -232,7 +232,7 @@ const listMemberClassPayments = async (gymId, memberId) => {
     FROM class_payments cpay
     JOIN classes c ON c.id = cpay.class_id
     LEFT JOIN class_plans cplan ON cplan.id = cpay.class_plan_id
-    WHERE cpay.gym_id = $1 AND cpay.member_id = $2
+    WHERE cpay.gym_id = $1 AND cpay.member_id = $2 AND cpay.deleted_at IS NULL
     ORDER BY cpay.payment_date DESC
   `;
   const res = await pool.query(query, [gymId, memberId]);
@@ -251,10 +251,139 @@ const listMemberClassPayments = async (gymId, memberId) => {
   }));
 };
 
+const softDeleteClassPayment = async (gymId, paymentId) => {
+  const result = await pool.query(
+    `UPDATE class_payments
+     SET deleted_at = NOW(), updated_at = NOW()
+     WHERE id = $1 AND gym_id = $2 AND deleted_at IS NULL
+     RETURNING id`,
+    [paymentId, gymId]
+  );
+  return result.rows[0] ?? null;
+};
+
+const listAllClassMembers = async (gymId, classPlanId = null) => {
+  const query = `
+    SELECT
+      cm.id AS membership_id,
+      cm.start_date,
+      cm.expiry_date,
+      cm.status AS membership_status,
+      cm.sessions_allowed,
+      cm.sessions_used,
+      m.id AS member_uuid,
+      m.member_id,
+      m.first_name,
+      m.last_name,
+      m.phone,
+      c.id AS class_id,
+      c.name AS class_name,
+      c.category AS class_category,
+      c.instructor_name,
+      cp.id AS plan_id,
+      cp.name AS plan_name,
+      cp.price AS plan_price,
+      cp.billing_period,
+      cp.is_unlimited,
+      (
+        SELECT cp2.payment_status
+        FROM class_payments cp2
+        WHERE cp2.class_membership_id = cm.id AND cp2.deleted_at IS NULL
+        ORDER BY cp2.created_at DESC LIMIT 1
+      ) AS payment_status,
+      (
+        SELECT cp2.remaining_amount
+        FROM class_payments cp2
+        WHERE cp2.class_membership_id = cm.id AND cp2.deleted_at IS NULL
+        ORDER BY cp2.created_at DESC LIMIT 1
+      ) AS remaining_amount
+    FROM class_memberships cm
+    JOIN members m ON m.id = cm.member_id
+    JOIN classes c ON c.id = cm.class_id
+    JOIN class_plans cp ON cp.id = cm.class_plan_id
+    WHERE cm.gym_id = $1
+      AND ($2::uuid IS NULL OR cm.class_plan_id = $2)
+    ORDER BY cm.created_at DESC
+  `;
+  const res = await pool.query(query, [gymId, classPlanId || null]);
+  return res.rows.map((r) => ({
+    membershipId: r.membership_id,
+    startDate: r.start_date,
+    expiryDate: r.expiry_date,
+    membershipStatus: r.membership_status,
+    sessionsAllowed: r.sessions_allowed ? Number(r.sessions_allowed) : null,
+    sessionsUsed: Number(r.sessions_used),
+    memberUuid: r.member_uuid,
+    memberId: r.member_id,
+    memberName: `${r.first_name} ${r.last_name}`,
+    memberPhone: r.phone,
+    classId: r.class_id,
+    className: r.class_name,
+    classCategory: r.class_category,
+    instructorName: r.instructor_name,
+    planId: r.plan_id,
+    planName: r.plan_name,
+    planPrice: Number(r.plan_price),
+    billingPeriod: r.billing_period,
+    isUnlimited: r.is_unlimited,
+    paymentStatus: r.payment_status || 'Paid',
+    remainingAmount: Number(r.remaining_amount || 0)
+  }));
+};
+
+const listAllClassPayments = async (gymId) => {
+  const query = `
+    SELECT
+      cpay.id AS payment_id,
+      cpay.total_amount,
+      cpay.paid_amount,
+      cpay.remaining_amount,
+      cpay.payment_date,
+      cpay.payment_method,
+      cpay.payment_status,
+      cpay.receipt_number,
+      cpay.notes,
+      m.id AS member_uuid,
+      m.member_id,
+      m.first_name,
+      m.last_name,
+      m.phone,
+      c.name AS class_name,
+      cplan.name AS plan_name
+    FROM class_payments cpay
+    JOIN members m ON m.id = cpay.member_id
+    JOIN classes c ON c.id = cpay.class_id
+    LEFT JOIN class_plans cplan ON cplan.id = cpay.class_plan_id
+    WHERE cpay.gym_id = $1 AND cpay.deleted_at IS NULL
+    ORDER BY cpay.payment_date DESC, cpay.created_at DESC
+  `;
+  const res = await pool.query(query, [gymId]);
+  return res.rows.map((r) => ({
+    paymentId: r.payment_id,
+    totalAmount: Number(r.total_amount),
+    paidAmount: Number(r.paid_amount),
+    remainingAmount: Number(r.remaining_amount),
+    paymentDate: r.payment_date,
+    paymentMethod: r.payment_method,
+    paymentStatus: r.payment_status,
+    receiptNumber: r.receipt_number,
+    notes: r.notes,
+    memberUuid: r.member_uuid,
+    memberId: r.member_id,
+    memberName: `${r.first_name} ${r.last_name}`,
+    memberPhone: r.phone,
+    className: r.class_name,
+    planName: r.plan_name || 'Class Plan'
+  }));
+};
+
 module.exports = {
   enrollClassMembership,
+  listAllClassMembers,
+  listAllClassPayments,
   listClassMemberships: listMemberClassMemberships,
   listClassOutstandingDues,
   listMemberClassPayments,
-  recordClassDuesPayment
+  recordClassDuesPayment,
+  softDeleteClassPayment
 };

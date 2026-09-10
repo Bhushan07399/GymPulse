@@ -6,6 +6,7 @@ export interface MembershipPlan {
   price: number;
   description?: string;
   isActive: boolean;
+  membersCount?: number;
 }
 
 export interface Member {

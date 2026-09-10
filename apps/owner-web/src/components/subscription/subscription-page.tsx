@@ -325,6 +325,12 @@ export function SubscriptionPage() {
               </div>
             </div>
 
+            <div className="mb-4 rounded-xl border border-blue-200/80 bg-blue-50/60 p-3.5 text-xs text-blue-950 font-medium">
+              <p className="font-bold text-blue-900">
+                Your base plan determines your features. Your location count determines how many gyms you can manage.
+              </p>
+            </div>
+
             {/* Single vs Multi Toggle */}
             <div className="grid gap-3 sm:grid-cols-2 max-w-xl">
               <button

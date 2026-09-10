@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { StyleSheet, View, Text, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Colors } from '../theme/colors';
 import { attendanceService } from '../services/attendance.service';
 import { ScreenContainer } from '../components/ui/ScreenContainer';
@@ -17,11 +17,24 @@ interface AttendanceLedgerScreenProps {
 }
 
 export const AttendanceLedgerScreen = ({ navigation }: AttendanceLedgerScreenProps) => {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
 
   const { data: records = [], isLoading, error, refetch, isRefetching } = useQuery({
     queryKey: ['todayLedger', search],
     queryFn: () => attendanceService.getTodayLedger({ search: search.trim() || undefined }),
+  });
+
+  const checkoutMutation = useMutation({
+    mutationFn: (id: string) => attendanceService.checkOut(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['todayLedger'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboardSummary'] });
+      Alert.alert('Check-out Recorded', 'Member successfully checked out.');
+    },
+    onError: (err: any) => {
+      Alert.alert('Error', err.message || 'Unable to record check-out.');
+    },
   });
 
   return (
@@ -67,33 +80,54 @@ export const AttendanceLedgerScreen = ({ navigation }: AttendanceLedgerScreenPro
         <FlatList
           data={records}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }: { item: AttendanceRecord }) => (
-            <View style={styles.rowCard}>
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarInitials}>
-                  {item.member
-                    ? `${item.member.firstName?.[0] || ''}${item.member.lastName?.[0] || ''}`.toUpperCase()
-                    : 'GP'}
-                </Text>
-              </View>
+          renderItem={({ item }: { item: AttendanceRecord }) => {
+            const isCheckedOut = Boolean(item.checkOutTime) || (Date.now() - new Date(item.checkInTime).getTime() >= 4 * 60 * 60 * 1000);
+            return (
+              <View style={styles.rowCard}>
+                <View style={styles.avatarCircle}>
+                  <Text style={styles.avatarInitials}>
+                    {item.member
+                      ? `${item.member.firstName?.[0] || ''}${item.member.lastName?.[0] || ''}`.toUpperCase()
+                      : 'GP'}
+                  </Text>
+                </View>
 
-              <View style={styles.info}>
-                <Text style={styles.memberName}>
-                  {item.member ? `${item.member.firstName} ${item.member.lastName}` : 'Gym Member'}
-                </Text>
-                <Text style={styles.memberIdText}>
-                  ID: {item.member?.memberId || 'N/A'} • Method: {item.checkInMethod || 'QR'}
-                </Text>
-              </View>
+                <View style={styles.info}>
+                  <Text style={styles.memberName}>
+                    {item.member ? `${item.member.firstName} ${item.member.lastName}` : 'Gym Member'}
+                  </Text>
+                  <Text style={styles.memberIdText}>
+                    ID: {item.member?.memberId || 'N/A'} • Method: {item.checkInMethod || 'QR'}
+                  </Text>
+                </View>
 
-              <View style={styles.rightCol}>
-                <StatusBadge status="PRESENT" label="Checked In" />
-                <Text style={styles.timeText}>
-                  {new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </Text>
+                <View style={styles.rightCol}>
+                  {isCheckedOut ? (
+                    <>
+                      <StatusBadge status="INACTIVE" label="Checked Out" />
+                      <Text style={styles.timeText}>
+                        {item.checkOutTime
+                          ? `Out: ${new Date(item.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                          : 'Auto closed (4h)'}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <StatusBadge status="PRESENT" label="Currently In" />
+                      <TouchableOpacity
+                        style={styles.checkoutBtn}
+                        onPress={() => checkoutMutation.mutate(item.id)}
+                        disabled={checkoutMutation.isPending}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.checkoutBtnText}>Check Out</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
               </View>
-            </View>
-          )}
+            );
+          }}
           showsVerticalScrollIndicator={false}
           onRefresh={refetch}
           refreshing={isRefetching}
@@ -164,5 +198,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.slate500,
     marginTop: 4,
+  },
+  checkoutBtn: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 4,
+  },
+  checkoutBtnText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
   },
 });

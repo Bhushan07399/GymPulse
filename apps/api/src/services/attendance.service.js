@@ -26,12 +26,17 @@ const assertStaff = async (gymId, staffId) => {
   }
 };
 
-const handleAttendanceWriteError = (error) => {
+const handleAttendanceWriteError = (error, member) => {
   if (error.code === '23505') {
-    throw new AppError(409, 'Attendance already exists for this member and date.');
+    const memberName = member ? `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.member_id : 'Member';
+    throw new AppError(409, `${memberName} has already been checked in today.`, 'ALREADY_CHECKED_IN');
   }
 
-  if (error.code === '23514' || error.code === '22007') {
+  if (error.code === '23503') {
+    throw new AppError(400, 'Invalid member, gym, or staff reference.');
+  }
+
+  if (error.code === '23514' || error.code === '22007' || error.code === '22P02') {
     throw new AppError(400, 'Attendance data violates a database constraint.');
   }
 
@@ -43,10 +48,25 @@ const createAttendance = async (gymId, attendance) => {
   await assertStaff(gymId, attendance.markedByStaffId);
   validateAttendanceTimes(attendance);
 
+  const existing = await attendanceRepository.findAttendanceByMemberAndDate(
+    gymId,
+    member.id,
+    attendance.attendanceDate
+  );
+  if (existing) {
+    const memberName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || member.member_id || 'Member';
+    throw new AppError(409, `${memberName} has already been checked in today.`, 'ALREADY_CHECKED_IN');
+  }
+
   try {
-    return await attendanceRepository.createAttendance({ gymId, ...attendance, memberId: member.id, memberPublicId: member.member_id });
+    return await attendanceRepository.createAttendance({
+      gymId,
+      ...attendance,
+      memberId: member.id,
+      memberPublicId: member.member_id
+    });
   } catch (error) {
-    handleAttendanceWriteError(error);
+    handleAttendanceWriteError(error, member);
   }
 };
 

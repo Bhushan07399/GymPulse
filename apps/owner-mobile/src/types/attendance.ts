@@ -5,6 +5,7 @@ export interface AttendanceRecord {
   gymId: string;
   memberId: string;
   checkInTime: string;
+  checkOutTime?: string | null;
   status: 'PRESENT' | 'ABSENT' | 'LATE';
   checkInMethod?: 'QR' | 'MANUAL' | 'BIOMETRIC';
   member?: Member;

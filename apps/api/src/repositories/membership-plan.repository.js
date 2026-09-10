@@ -53,31 +53,49 @@ const editableMembershipPlanColumns = Object.freeze({
   isActive: 'is_active'
 });
 
-const listMembershipPlans = async (gymId, { page, limit, search, sortBy, order, status }) => {
+const listMembershipPlans = async (gymId, { page = 1, limit = 20, search, sortBy, order, status } = {}) => {
   const sortColumns = {
-    createdAt: 'created_at',
-    planName: 'plan_name',
-    durationInDays: 'duration_in_days',
-    price: 'price'
+    createdAt: 'mp.created_at',
+    planName: 'mp.plan_name',
+    durationInDays: 'mp.duration_in_days',
+    price: 'mp.price'
   };
-  const offset = (page - 1) * limit;
+  const pageNum = Math.max(Number(page) || 1, 1);
+  const limitNum = Math.max(Number(limit) || 20, 1);
+  const offset = (pageNum - 1) * limitNum;
   const statusFilter = status
-    ? `AND is_active = ${status === 'active' ? 'TRUE' : 'FALSE'}`
+    ? `AND mp.is_active = ${status === 'active' ? 'TRUE' : 'FALSE'}`
     : '';
+  const orderDirection = (order || 'desc').toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+  const sortColumn = sortColumns[sortBy] || 'mp.created_at';
+
   const result = await pool.query(
-    `SELECT ${membershipPlanColumns}, COUNT(*) OVER() AS total_count
-     FROM membership_plans
-     WHERE gym_id = $1
-       AND deleted_at IS NULL
+    `SELECT
+       mp.id,
+       mp.gym_id,
+       mp.plan_name,
+       mp.duration_in_days,
+       mp.price,
+       mp.description,
+       mp.is_active,
+       mp.created_at,
+       mp.updated_at,
+       COUNT(DISTINCT m.id) FILTER (WHERE m.deleted_at IS NULL AND m.is_active = TRUE)::INTEGER AS members_count,
+       COUNT(*) OVER() AS total_count
+     FROM membership_plans mp
+     LEFT JOIN members m ON m.membership_plan_id = mp.id
+     WHERE mp.gym_id = $1
+       AND mp.deleted_at IS NULL
        ${statusFilter}
        AND (
          $2::text IS NULL
-         OR plan_name ILIKE '%' || $2 || '%'
-         OR description ILIKE '%' || $2 || '%'
+         OR mp.plan_name ILIKE '%' || $2 || '%'
+         OR mp.description ILIKE '%' || $2 || '%'
        )
-     ORDER BY ${sortColumns[sortBy]} ${order.toUpperCase()}
+     GROUP BY mp.id
+     ORDER BY ${sortColumn} ${orderDirection}
      LIMIT $3 OFFSET $4`,
-    [gymId, search ?? null, limit, offset]
+    [gymId, search ?? null, limitNum, offset]
   );
 
   return {

@@ -75,6 +75,21 @@ memberAppRouter.post(
   validate(scanQrSchema),
   asyncHandler(memberAppController.scanAttendanceQr)
 );
+memberAppRouter.post(
+  '/attendance/checkout',
+  ...memberOnly,
+  asyncHandler(memberAppController.checkoutAttendance)
+);
+memberAppRouter.post(
+  '/attendance/:id/checkout',
+  ...memberOnly,
+  asyncHandler(memberAppController.checkoutAttendance)
+);
+memberAppRouter.post(
+  '/attendance/class-checkin',
+  ...memberOnly,
+  asyncHandler(memberAppController.markClassAttendance)
+);
 memberAppRouter.get('/attendance', ...memberOnly, asyncHandler(memberAppController.getAttendance));
 
 // Live Gym Crowd & Peak Hours Analytics (Requires Growth Plan or higher)

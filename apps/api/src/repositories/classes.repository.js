@@ -800,6 +800,100 @@ const getSessionQRData = async (gymId, sessionId) => {
   };
 };
 
+const listClassSessions = async (gymId, { date = null, classId = null } = {}) => {
+  const query = `
+    SELECT
+      cs.id AS session_id,
+      cs.session_date,
+      cs.start_time,
+      cs.end_time,
+      cs.capacity,
+      cs.status,
+      c.id AS class_id,
+      c.name AS class_name,
+      c.category,
+      c.instructor_name,
+      COUNT(DISTINCT cb.id) FILTER (WHERE cb.status = 'Booked') AS booked_count,
+      COUNT(DISTINCT ca.id) FILTER (WHERE ca.status = 'Attended') AS attended_count
+    FROM class_sessions cs
+    JOIN classes c ON c.id = cs.class_id
+    LEFT JOIN class_bookings cb ON cb.session_id = cs.id AND cb.gym_id = $1
+    LEFT JOIN class_attendance ca ON ca.session_id = cs.id AND ca.gym_id = $1
+    WHERE cs.gym_id = $1
+      AND ($2::date IS NULL OR cs.session_date = $2)
+      AND ($3::uuid IS NULL OR cs.class_id = $3)
+    GROUP BY cs.id, c.id
+    ORDER BY cs.session_date DESC, cs.start_time ASC
+  `;
+  const res = await pool.query(query, [gymId, date || null, classId || null]);
+  return res.rows.map((r) => ({
+    sessionId: r.session_id,
+    sessionDate: r.session_date,
+    startTime: r.start_time,
+    endTime: r.end_time,
+    capacity: Number(r.capacity),
+    status: r.status,
+    classId: r.class_id,
+    className: r.class_name,
+    category: r.category,
+    instructorName: r.instructor_name,
+    bookedCount: Number(r.booked_count),
+    attendedCount: Number(r.attended_count),
+    availableSeats: Math.max(0, Number(r.capacity) - Number(r.booked_count))
+  }));
+};
+
+const listGymClassAttendance = async (gymId, { date = null, classId = null, sessionId = null } = {}) => {
+  const query = `
+    SELECT
+      ca.id AS attendance_id,
+      ca.status AS attendance_status,
+      ca.marked_at,
+      ca.checkout_at,
+      m.id AS member_uuid,
+      m.member_id,
+      m.first_name,
+      m.last_name,
+      m.phone,
+      cs.id AS session_id,
+      cs.session_date,
+      cs.start_time,
+      cs.end_time,
+      c.id AS class_id,
+      c.name AS class_name,
+      c.category,
+      c.instructor_name
+    FROM class_attendance ca
+    JOIN members m ON m.id = ca.member_id
+    JOIN class_sessions cs ON cs.id = ca.session_id
+    JOIN classes c ON c.id = ca.class_id
+    WHERE ca.gym_id = $1
+      AND ($2::date IS NULL OR cs.session_date = $2)
+      AND ($3::uuid IS NULL OR ca.class_id = $3)
+      AND ($4::uuid IS NULL OR ca.session_id = $4)
+    ORDER BY ca.marked_at DESC
+  `;
+  const res = await pool.query(query, [gymId, date || null, classId || null, sessionId || null]);
+  return res.rows.map((r) => ({
+    attendanceId: r.attendance_id,
+    status: r.attendance_status,
+    markedAt: r.marked_at,
+    checkoutAt: r.checkout_at,
+    memberUuid: r.member_uuid,
+    memberId: r.member_id,
+    memberName: `${r.first_name} ${r.last_name}`,
+    memberPhone: r.phone,
+    sessionId: r.session_id,
+    sessionDate: r.session_date,
+    startTime: r.start_time,
+    endTime: r.end_time,
+    classId: r.class_id,
+    className: r.class_name,
+    category: r.category,
+    instructorName: r.instructor_name
+  }));
+};
+
 module.exports = {
   bookClassSession,
   checkoutAttendance,
@@ -811,7 +905,9 @@ module.exports = {
   getMemberClassAttendanceHistory,
   getWeeklySchedule,
   listBookingsForClassOrSession,
+  listClassSessions,
   listClasses,
+  listGymClassAttendance,
   listMemberBookings,
   markAttendance,
   getSessionQRData,

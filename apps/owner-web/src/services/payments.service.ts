@@ -88,3 +88,31 @@ export async function createPayment(payload: {
 
   return response.data.data.payment;
 }
+
+export async function getPayment(id: string) {
+  const response = await apiClient.get<ApiResponse<{ payment: Payment }>>(`/payments/${id}`);
+  return response.data.data.payment;
+}
+
+export async function updatePayment(
+  id: string,
+  payload: Partial<{
+    paymentAmount: number;
+    discountAmount: number;
+    taxAmount: number;
+    totalAmount: number;
+    paymentMethod: "Cash" | "UPI" | "Card" | "Bank Transfer";
+    paymentStatus: "Pending" | "Paid" | "Failed" | "Refunded";
+    paymentDate: string;
+    nextDueDate: string;
+    notes: string | null;
+  }>
+) {
+  const response = await apiClient.put<ApiResponse<{ payment: Payment }>>(`/payments/${id}`, payload);
+  return response.data.data.payment;
+}
+
+export async function deletePayment(id: string) {
+  const response = await apiClient.delete<ApiResponse<null>>(`/payments/${id}`);
+  return response.data;
+}

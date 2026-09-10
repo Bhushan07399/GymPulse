@@ -59,6 +59,18 @@ const getSessionQR = async (req, res) => {
   res.status(200).json({ success: true, data });
 };
 
+const listSessions = async (req, res) => {
+  const { classId, date } = req.query;
+  const sessions = await classesService.getSessionsList(req.user.gymId, { classId, date });
+  res.status(200).json({ success: true, data: { sessions } });
+};
+
+const listAttendance = async (req, res) => {
+  const { classId, date, sessionId } = req.query;
+  const attendance = await classesService.getGymClassAttendanceList(req.user.gymId, { classId, date, sessionId });
+  res.status(200).json({ success: true, data: { attendance } });
+};
+
 const getClassAnalytics = async (req, res) => {
   const { classId, category } = req.query;
   const analytics = await classesService.getClassAnalytics(req.user.gymId, classId, category);
@@ -116,6 +128,8 @@ module.exports = {
   getWeeklySchedule,
   listBookings,
   listClasses,
+  listSessions,
+  listAttendance,
   markAttendance,
   memberBookClass,
   memberCancelBooking,

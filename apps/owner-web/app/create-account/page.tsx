@@ -74,7 +74,7 @@ export default function CreateAccountPage() {
           <span className="grid size-7 place-items-center rounded-lg bg-slate-900 text-[10px] font-black text-white">
             GP
           </span>
-          ← Back to Role Selection
+          ← Back to Home
         </Link>
 
         <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-10 shadow-xl space-y-8">

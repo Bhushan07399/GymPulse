@@ -42,7 +42,7 @@ const getSummary = async (gymId) => {
         COALESCE(SUM(paid_amount), 0)::NUMERIC AS class_total_revenue,
         COALESCE(SUM(paid_amount) FILTER (WHERE payment_date >= DATE_TRUNC('month', CURRENT_DATE)::date), 0)::NUMERIC AS class_monthly_revenue
       FROM class_payments
-      WHERE gym_id = $1
+      WHERE gym_id = $1 AND deleted_at IS NULL
     ),
     gym_settings_stats AS (
       SELECT 

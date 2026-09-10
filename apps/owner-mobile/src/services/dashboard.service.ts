@@ -11,6 +11,7 @@ export interface DashboardSummary {
   outstandingAmount: number;
   newJoiningsThisMonth?: number;
   activeClasses?: number;
+  hasClassFeature?: boolean;
 }
 
 export const dashboardService = {
@@ -29,6 +30,7 @@ export const dashboardService = {
       outstandingAmount: raw.totalOutstanding ?? raw.gymMemberships?.totalOutstanding ?? 0,
       newJoiningsThisMonth: raw.newJoiningsThisMonth ?? raw.gymMemberships?.newJoinings ?? 0,
       activeClasses: raw.classes?.activeClasses ?? 0,
+      hasClassFeature: Boolean(raw.hasClassFeature),
     };
   },
 };

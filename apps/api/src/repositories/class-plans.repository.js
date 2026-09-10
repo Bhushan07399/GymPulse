@@ -18,7 +18,7 @@ const listClassPlans = async (gymId, classId = null) => {
         (
           SELECT SUM(paid_amount)
           FROM class_payments cpay
-          WHERE cpay.class_plan_id = cp.id AND cpay.gym_id = $1
+          WHERE cpay.class_plan_id = cp.id AND cpay.gym_id = $1 AND cpay.deleted_at IS NULL
         ), 0
       ) AS total_revenue
     FROM class_plans cp

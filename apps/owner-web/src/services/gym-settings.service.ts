@@ -24,6 +24,8 @@ export type GymProfile = {
   managementContact?: string | null;
   termsAndConditions?: string | null;
   privacyPolicy?: string | null;
+  hasClassesEnabled?: boolean;
+  subscriptionPlan?: string | null;
 };
 
 export type OperatingDaySchedule = {
@@ -116,6 +118,8 @@ export const getGymProfile = async (): Promise<GymProfile> => {
     managementContact: raw.managementContact ?? raw.management_contact ?? null,
     termsAndConditions: raw.termsAndConditions ?? raw.terms_and_conditions ?? null,
     privacyPolicy: raw.privacyPolicy ?? raw.privacy_policy ?? null,
+    hasClassesEnabled: Boolean(raw.hasClassesEnabled ?? raw.has_classes_enabled),
+    subscriptionPlan: raw.subscriptionPlan ?? raw.subscription_plan ?? null,
   };
 };
 

@@ -172,7 +172,7 @@ const createNewGymLocation = async ({ ownerEmail, gymName, address, city, state,
   const primaryGym = locations.find((loc) => loc.subscription_status === 'ACTIVE' && loc.is_multi_gym) || locations[0];
   const isSubActive = primaryGym?.subscription_status === 'ACTIVE';
   const isMultiGym = Boolean(isSubActive && (primaryGym?.is_multi_gym || String(primaryGym?.subscription_plan).toLowerCase().includes('multi')));
-  const maxAllowed = isMultiGym ? Number(primaryGym?.max_locations || 5) : 1;
+  const maxAllowed = isMultiGym ? Number(primaryGym?.max_locations || 1) : 1;
 
   if (!isMultiGym || maxAllowed <= 1) {
     throw new AppError(

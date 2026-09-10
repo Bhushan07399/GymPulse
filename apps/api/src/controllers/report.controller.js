@@ -1,13 +1,25 @@
 const reportService = require('../services/report.service');
 const { buildPagination } = require('../utils/pagination');
 
-const summary = (value) => ({
-  totalMembers: value.total_members,
-  activeMembers: value.active_members,
-  expiredMembers: value.expired_members,
-  renewalsDue: value.renewals_due,
-  totalRevenue: Number(value.total_revenue),
-  monthRevenue: Number(value.month_revenue)
+const summary = (value = {}) => ({
+  totalMembers: Number(value.totalMembers ?? value.total_members ?? 0),
+  activeMembers: Number(value.activeMembers ?? value.active_members ?? 0),
+  expiredMembers: Number(value.expiredMembers ?? value.expired_members ?? 0),
+  renewalsDue: Number(value.renewalsDue ?? value.renewals_due ?? 0),
+  totalRevenue: Number(value.totalRevenue ?? value.total_revenue ?? 0),
+  monthRevenue: Number(value.monthRevenue ?? value.month_revenue ?? 0),
+  // Payment KPIs
+  totalPayments: Number(value.totalPayments ?? value.total_payments ?? 0),
+  paidPayments: Number(value.paidPayments ?? value.paid_payments ?? 0),
+  pendingPayments: Number(value.pendingPayments ?? value.pending_payments ?? 0),
+  failedPayments: Number(value.failedPayments ?? value.failed_payments ?? 0),
+  pendingAmount: Number(value.pendingAmount ?? value.pending_amount ?? 0),
+  // Attendance KPIs
+  totalAttendance: Number(value.totalAttendance ?? value.total_attendance ?? 0),
+  uniqueMembers: Number(value.uniqueMembers ?? value.unique_members ?? 0),
+  todayAttendance: Number(value.todayAttendance ?? value.today_attendance ?? 0),
+  checkedOut: Number(value.checkedOut ?? value.checked_out ?? 0),
+  currentlyIn: Number(value.currentlyIn ?? value.currently_in ?? 0)
 });
 
 const list = async (request, response) => {
@@ -28,7 +40,7 @@ const exportData = async (request, response) => {
     let csvHeader = '';
     let csvRows = [];
 
-    if (type === 'payment' || type === 'revenue') {
+    if (type === 'payment' || type === 'revenue' || type === 'business') {
       csvHeader = 'Payment ID,Member ID,First Name,Last Name,Phone,Plan Name,Payment Date,Payment Method,Payment Status,Total Amount (INR)';
       csvRows = rows.map((r) =>
         `"${r.id}","${r.member_id}","${r.first_name}","${r.last_name}","${r.phone}","${r.plan_name || ''}","${r.payment_date || ''}","${r.payment_method || ''}","${r.payment_status || ''}","${r.total_amount || 0}"`
@@ -47,8 +59,12 @@ const exportData = async (request, response) => {
 
     const csvContent = [csvHeader, ...csvRows].join('\n');
 
+    const gymRepository = require('../repositories/gym.repository');
+    const gym = await gymRepository.findProfileById(request.user.gymId);
+    const gymNameClean = (gym?.name || 'Gym').replace(/[^a-zA-Z0-9]/g, '_');
+
     response.setHeader('Content-Type', 'text/csv');
-    response.setHeader('Content-Disposition', `attachment; filename="GymPulse_${type}_report.csv"`);
+    response.setHeader('Content-Disposition', `attachment; filename="${gymNameClean}_${type}_report.csv"`);
     return response.status(200).send(csvContent);
   }
 

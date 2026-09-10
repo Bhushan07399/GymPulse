@@ -137,7 +137,7 @@ const createMemberWithPayment = async ({ gymId, staffId, member, plan, paymentIn
 
     const memberResult = await client.query(memberInsertQuery, [
       gymId,
-      plan.id,
+      plan ? plan.id : null,
       publicMemberId,
       member.firstName,
       member.lastName,
@@ -148,7 +148,7 @@ const createMemberWithPayment = async ({ gymId, staffId, member, plan, paymentIn
       member.emergencyContact || member.phone,
       member.address || 'Gym Address',
       member.joinDate,
-      member.expiryDate,
+      member.expiryDate || null,
       qrCode,
       member.profilePhotoUrl || null,
       member.medicalNotes || null,
@@ -157,74 +157,77 @@ const createMemberWithPayment = async ({ gymId, staffId, member, plan, paymentIn
 
     const createdMember = memberResult.rows[0];
 
-    // Calculate Payment Amounts & Status
-    const totalAmount = Number(plan.price);
-    let paidAmount = 0;
-    let paymentStatus = 'Pending';
+    // Only create gym payment if plan exists
+    if (plan) {
+      const totalAmount = Number(plan.price);
+      let paidAmount = 0;
+      let paymentStatus = 'Pending';
 
-    if (paymentInfo.paymentStatus === 'Paid') {
-      paidAmount = totalAmount;
-      paymentStatus = 'Paid';
-    } else if (paymentInfo.paymentStatus === 'Partial') {
-      paidAmount = Number(paymentInfo.amountPaid || 0);
-      paymentStatus = 'Partial';
-    } else {
-      paidAmount = 0;
-      paymentStatus = 'Unpaid';
-    }
+      if (paymentInfo.paymentStatus === 'Paid') {
+        paidAmount = totalAmount;
+        paymentStatus = 'Paid';
+      } else if (paymentInfo.paymentStatus === 'Partial') {
+        paidAmount = Number(paymentInfo.amountPaid || 0);
+        paymentStatus = 'Partial';
+      } else {
+        paidAmount = 0;
+        paymentStatus = 'Unpaid';
+      }
 
-    const remainingAmount = Math.max(0, totalAmount - paidAmount);
+      const remainingAmount = Math.max(0, totalAmount - paidAmount);
 
-    // Fetch staff ID if not provided
-    let effectiveStaffId = staffId;
-    if (!effectiveStaffId) {
-      const staffRes = await client.query(
-        "SELECT id FROM staff WHERE gym_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 1",
-        [gymId]
-      );
-      effectiveStaffId = staffRes.rows[0]?.id;
-    }
+      // Fetch staff ID if not provided
+      let effectiveStaffId = staffId;
+      if (!effectiveStaffId) {
+        const staffRes = await client.query(
+          "SELECT id FROM staff WHERE gym_id = $1 AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 1",
+          [gymId]
+        );
+        effectiveStaffId = staffRes.rows[0]?.id;
+      }
 
-    if (effectiveStaffId) {
-      const paymentInsertQuery = `
-        INSERT INTO payments (
-          gym_id,
-          member_id,
-          membership_plan_id,
-          payment_amount,
-          discount_amount,
-          tax_amount,
-          total_amount,
-          paid_amount,
-          remaining_amount,
-          payment_method,
-          payment_status,
-          transaction_reference,
-          payment_date,
-          next_due_date,
-          collected_by_staff_id,
-          notes
-        )
-        VALUES ($1, $2, $3, $4, 0, 0, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-        RETURNING id, total_amount, paid_amount, remaining_amount, payment_status, payment_date
-      `;
+      if (effectiveStaffId) {
+        const paymentInsertQuery = `
+          INSERT INTO payments (
+            gym_id,
+            member_id,
+            membership_plan_id,
+            payment_amount,
+            discount_amount,
+            tax_amount,
+            total_amount,
+            paid_amount,
+            remaining_amount,
+            payment_method,
+            payment_status,
+            transaction_reference,
+            payment_date,
+            next_due_date,
+            collected_by_staff_id,
+            notes
+          )
+          VALUES ($1, $2, $3, $4, 0, 0, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          RETURNING id, total_amount, paid_amount, remaining_amount, payment_status, payment_date
+        `;
 
-      await client.query(paymentInsertQuery, [
-        gymId,
-        createdMember.id,
-        plan.id,
-        totalAmount,
-        totalAmount,
-        paidAmount,
-        remainingAmount,
-        paymentInfo.paymentMethod || 'Cash',
-        paymentStatus,
-        `TXN-${publicMemberId}-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
-        member.joinDate,
-        member.expiryDate,
-        effectiveStaffId,
-        `Initial payment during registration (${paymentInfo.paymentStatus})`
-      ]);
+        const paymentRes = await client.query(paymentInsertQuery, [
+          gymId,
+          createdMember.id,
+          plan.id,
+          totalAmount,
+          totalAmount,
+          paidAmount,
+          remainingAmount,
+          paymentInfo.paymentMethod || 'Cash',
+          paymentStatus,
+          `TXN-${publicMemberId}-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+          member.joinDate,
+          member.expiryDate,
+          effectiveStaffId,
+          `Initial payment during registration (${paymentInfo.paymentStatus})`
+        ]);
+        createdMember.payment = paymentRes.rows[0];
+      }
     }
 
     await client.query('COMMIT');
@@ -263,8 +266,12 @@ const listMembers = async (gymId, { page, limit, search, sortBy, order, status }
     inactive: 'is_active = FALSE',
     expired: 'expiry_date < CURRENT_DATE'
   };
-  const offset = (page - 1) * limit;
-  const statusFilter = status ? `AND ${statusFilters[status]}` : '';
+  const parsedPage = Math.max(1, Number(page) || 1);
+  const parsedLimit = Math.max(1, Number(limit) || 20);
+  const offset = (parsedPage - 1) * parsedLimit;
+  const statusFilter = status ? `AND ${statusFilters[status] || 'TRUE'}` : '';
+  const sortCol = (sortBy && sortColumns[sortBy]) ? sortColumns[sortBy] : 'created_at';
+  const sortOrder = String(order || 'desc').toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
   const result = await pool.query(
     `SELECT ${memberColumns}, COUNT(*) OVER() AS total_count
      FROM members
@@ -280,9 +287,9 @@ const listMembers = async (gymId, { page, limit, search, sortBy, order, status }
          OR phone ILIKE '%' || $2 || '%'
          OR qr_code ILIKE '%' || $2 || '%'
        )
-     ORDER BY ${sortColumns[sortBy]} ${order.toUpperCase()}
+     ORDER BY ${sortCol} ${sortOrder}
      LIMIT $3 OFFSET $4`,
-    [gymId, search ?? null, limit, offset]
+    [gymId, search ?? null, parsedLimit, offset]
   );
 
   return {

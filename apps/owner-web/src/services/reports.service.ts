@@ -2,7 +2,7 @@ import { apiClient } from "@/src/lib/api-client";
 import type { ApiResponse } from "@/src/types/api";
 import type { Pagination } from "@/src/types/member";
 
-export type ReportType = "member" | "payment" | "attendance" | "revenue";
+export type ReportType = "member" | "payment" | "attendance" | "revenue" | "membership" | "business" | "class";
 export type ReportSummary = {
   totalMembers: number;
   activeMembers: number;
@@ -10,6 +10,16 @@ export type ReportSummary = {
   renewalsDue: number;
   totalRevenue: number;
   monthRevenue: number;
+  totalPayments?: number;
+  paidPayments?: number;
+  pendingPayments?: number;
+  failedPayments?: number;
+  pendingAmount?: number;
+  totalAttendance?: number;
+  uniqueMembers?: number;
+  todayAttendance?: number;
+  checkedOut?: number;
+  currentlyIn?: number;
 };
 export type ReportRow = Record<string, string | number | boolean | null>;
 export type ReportParams = {

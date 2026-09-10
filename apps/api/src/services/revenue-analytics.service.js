@@ -22,7 +22,7 @@ const getBusinessRevenueOverview = async (gymId, startDate = null, endDate = nul
       COUNT(*) AS class_payment_count,
       COALESCE(SUM(remaining_amount), 0) AS class_outstanding_dues
     FROM class_payments
-    WHERE gym_id = $1
+    WHERE gym_id = $1 AND deleted_at IS NULL
       AND ($2::date IS NULL OR payment_date >= $2)
       AND ($3::date IS NULL OR payment_date <= $3)
   `;
@@ -53,7 +53,7 @@ const getBusinessRevenueOverview = async (gymId, startDate = null, endDate = nul
         ), 0
       ) AS active_members
     FROM classes c
-    LEFT JOIN class_payments cp ON cp.class_id = c.id AND cp.gym_id = $1
+    LEFT JOIN class_payments cp ON cp.class_id = c.id AND cp.gym_id = $1 AND cp.deleted_at IS NULL
     WHERE c.gym_id = $1 AND c.deleted_at IS NULL
     GROUP BY c.id, c.name, c.category
     ORDER BY class_revenue DESC
@@ -76,7 +76,7 @@ const getBusinessRevenueOverview = async (gymId, startDate = null, endDate = nul
       ) AS active_subscribers
     FROM class_plans cplan
     JOIN classes c ON c.id = cplan.class_id
-    LEFT JOIN class_payments cp ON cp.class_plan_id = cplan.id AND cp.gym_id = $1
+    LEFT JOIN class_payments cp ON cp.class_plan_id = cplan.id AND cp.gym_id = $1 AND cp.deleted_at IS NULL
     WHERE cplan.gym_id = $1 AND cplan.deleted_at IS NULL
     GROUP BY cplan.id, cplan.name, c.name
     ORDER BY plan_revenue DESC

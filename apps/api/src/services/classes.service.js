@@ -269,6 +269,14 @@ const memberCheckoutClass = async (gymId, memberId, sessionId) => {
   return record;
 };
 
+const getSessionsList = async (gymId, filters) => {
+  return await classesRepository.listClassSessions(gymId, filters);
+};
+
+const getGymClassAttendanceList = async (gymId, filters) => {
+  return await classesRepository.listGymClassAttendance(gymId, filters);
+};
+
 module.exports = {
   bookSession,
   cancelMemberBooking,
@@ -279,10 +287,12 @@ module.exports = {
   getClassById,
   getClassesList,
   getDashboardKPIs,
+  getGymClassAttendanceList,
   getMemberAttendanceHistory,
   getMemberAvailableClasses,
   getMemberMyBookings,
   getSessionQR,
+  getSessionsList,
   getWeeklySchedule,
   markAttendance,
   memberCheckoutClass,

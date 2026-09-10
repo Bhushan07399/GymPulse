@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,9 +39,9 @@ function GymPulseMark() {
         <span className="text-xl font-bold tracking-[-0.05em] text-[#0F172A]">GymPulse</span>
       </div>
 
-      <a href="/" className="text-xs font-bold text-[#64748B] hover:text-[#0F172A]">
-        ← Role Selection
-      </a>
+      <Link href="/" className="text-xs font-bold text-[#64748B] hover:text-[#0F172A]">
+        ← Back to Home
+      </Link>
     </div>
   );
 }
@@ -190,7 +191,7 @@ export default function LoginPage() {
         >
           <div className="max-w-xl border-l-2 border-amber-400 pl-6">
             <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-amber-400/10 px-3 py-1 text-xs font-bold text-amber-300 border border-amber-400/30">
-              GYMPULSE ENTERPRISE PLATFORM
+              GYMPULSE MANAGEMENT PLATFORM
             </span>
             <p className="mt-3 text-3xl font-bold leading-[1.15] tracking-[-0.04em] text-white xl:text-4xl">
               Elevate every member experience. Stay ahead of every operation.

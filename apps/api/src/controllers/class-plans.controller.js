@@ -62,6 +62,23 @@ const recordClassDuesPayment = async (req, res) => {
   res.status(200).json({ success: true, message: 'Class payment recorded.', data: { payment: updated } });
 };
 
+const listAllClassMembers = async (req, res) => {
+  const { classPlanId } = req.query;
+  const memberships = await classMembershipsRepo.listAllClassMembers(req.user.gymId, classPlanId);
+  res.status(200).json({ success: true, data: { memberships } });
+};
+
+const listAllClassPayments = async (req, res) => {
+  const payments = await classMembershipsRepo.listAllClassPayments(req.user.gymId);
+  res.status(200).json({ success: true, data: { payments } });
+};
+
+const deleteClassPayment = async (req, res) => {
+  const deleted = await classMembershipsRepo.softDeleteClassPayment(req.user.gymId, req.params.id);
+  if (!deleted) throw new AppError(404, 'Class payment not found.');
+  res.status(200).json({ success: true, message: 'Class payment soft-deleted successfully.' });
+};
+
 // Business Revenue Overview
 const getBusinessRevenueOverview = async (req, res) => {
   const { startDate, endDate } = req.query;
@@ -83,12 +100,15 @@ const getMemberClassPayments = async (req, res) => {
 
 module.exports = {
   createClassPlan,
+  deleteClassPayment,
   deleteClassPlan,
   enrollMember,
   getBusinessRevenueOverview,
   getClassPlanById,
   getMemberClassPayments,
   getMemberClassPlans,
+  listAllClassMembers,
+  listAllClassPayments,
   listClassOutstandingDues,
   listClassPlans,
   recordClassDuesPayment,

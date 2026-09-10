@@ -14,6 +14,8 @@ const formatMembershipPlan = (plan) => ({
   price: plan.price,
   description: plan.description,
   isActive: plan.is_active,
+  membersCount: Number(plan.members_count ?? plan.membersCount ?? 0),
+  members_count: Number(plan.members_count ?? plan.membersCount ?? 0),
   createdAt: plan.created_at,
   updatedAt: plan.updated_at
 });

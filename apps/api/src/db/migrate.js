@@ -3,11 +3,13 @@ const { logger } = require('../config/logger');
 
 const ensureSchema = async () => {
   try {
-    // 1. Add missing columns to members table if not exists
+    // 1. Add missing columns to members table if not exists and allow class-only members (nullable membership_plan_id)
     await pool.query(`
       ALTER TABLE members ADD COLUMN IF NOT EXISTS password_hash TEXT NULL;
       ALTER TABLE members ADD COLUMN IF NOT EXISTS left_date DATE NULL;
       ALTER TABLE members ADD COLUMN IF NOT EXISTS cancellation_reason TEXT NULL;
+      ALTER TABLE members ALTER COLUMN membership_plan_id DROP NOT NULL;
+      ALTER TABLE members ALTER COLUMN expiry_date DROP NOT NULL;
     `);
 
     // 2. Drop global member_id unique index and replace with tenant-scoped unique index UNIQUE(gym_id, member_id)
@@ -283,9 +285,10 @@ const ensureSchema = async () => {
       ALTER TABLE class_plans ADD COLUMN IF NOT EXISTS allowed_categories TEXT[] NULL;
     `);
 
-    // 14. Add checkout_at to class_attendance
+    // 14. Add checkout_at to class_attendance and deleted_at to class_payments
     await pool.query(`
       ALTER TABLE class_attendance ADD COLUMN IF NOT EXISTS checkout_at TIMESTAMPTZ NULL;
+      ALTER TABLE class_payments ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ NULL;
     `);
 
     // 15. Add Gym Branding and FitBhuz link columns to gyms and gym_settings
@@ -418,6 +421,23 @@ const ensureSchema = async () => {
       ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS show_gst BOOLEAN NOT NULL DEFAULT TRUE;
       ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS show_address BOOLEAN NOT NULL DEFAULT TRUE;
       ALTER TABLE gym_settings ADD COLUMN IF NOT EXISTS show_contact_number BOOLEAN NOT NULL DEFAULT TRUE;
+    `);
+
+    // 22. Create gym_subscription_history table if not exists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS gym_subscription_history (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        gym_id UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE,
+        plan VARCHAR(50) NOT NULL,
+        is_multi_gym BOOLEAN NOT NULL DEFAULT FALSE,
+        max_locations INTEGER NOT NULL DEFAULT 1,
+        billing_cycle VARCHAR(20) NOT NULL DEFAULT 'monthly',
+        start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+        end_date DATE NOT NULL,
+        amount_paid NUMERIC(10, 2) DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_subscription_history_gym ON gym_subscription_history (gym_id, created_at DESC);
     `);
 
     logger.info('Database schema migration check completed successfully.');

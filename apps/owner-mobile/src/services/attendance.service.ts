@@ -17,6 +17,7 @@ export const attendanceService = {
       gymId: a.gymId,
       memberId: a.memberId || a.memberUuid,
       checkInTime: a.checkInTime || a.createdAt,
+      checkOutTime: a.checkOutTime || a.check_out_time || null,
       status: a.status || 'PRESENT',
       checkInMethod: a.attendanceMethod || 'QR',
       member: a.member ? {
@@ -117,6 +118,24 @@ export const attendanceService = {
       status: 'PRESENT',
       checkInMethod: 'MANUAL',
       createdAt: a.createdAt || new Date().toISOString(),
+    };
+  },
+
+  async checkOut(attendanceId: string): Promise<AttendanceRecord> {
+    const res = await apiClient.put<{ data: any }>(`/attendance/${attendanceId}`, {
+      checkOutTime: new Date().toISOString(),
+    });
+    const a = res.data.data?.attendance || res.data.data;
+
+    return {
+      id: a.id,
+      gymId: a.gymId,
+      memberId: a.memberId,
+      checkInTime: a.checkInTime || a.createdAt,
+      checkOutTime: a.checkOutTime,
+      status: 'PRESENT',
+      checkInMethod: a.attendanceMethod || 'MANUAL',
+      createdAt: a.createdAt,
     };
   },
 };
