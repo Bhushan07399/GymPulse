@@ -545,6 +545,24 @@ const ensureSchema = async () => {
       ALTER TABLE gym_subscription_history ADD COLUMN IF NOT EXISTS event_type VARCHAR(50) NOT NULL DEFAULT 'RENEWAL';
       ALTER TABLE gym_subscription_history ADD COLUMN IF NOT EXISTS notes TEXT NULL;
       ALTER TABLE gym_subscription_history ADD COLUMN IF NOT EXISTS created_by_admin_id UUID NULL REFERENCES admin_users(id) ON DELETE SET NULL;
+
+      -- 25. Normalize legacy/test subscription plans to canonical GymPulse plans
+      -- STARTER -> Growth, ENTERPRISE -> Gym + Classes
+      UPDATE gyms
+      SET subscription_plan = 'Growth'
+      WHERE UPPER(subscription_plan) = 'STARTER';
+
+      UPDATE gyms
+      SET subscription_plan = 'Gym + Classes'
+      WHERE UPPER(subscription_plan) = 'ENTERPRISE';
+
+      UPDATE gym_subscription_history
+      SET plan = 'Growth'
+      WHERE UPPER(plan) = 'STARTER';
+
+      UPDATE gym_subscription_history
+      SET plan = 'Gym + Classes'
+      WHERE UPPER(plan) = 'ENTERPRISE';
     `);
 
     // Seed default WhatsApp cost rule if empty

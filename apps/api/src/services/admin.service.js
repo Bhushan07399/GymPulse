@@ -2,7 +2,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db/pool');
 const { env } = require('../config/env');
-const { calculateSubscriptionPrice } = require('../config/pricing');
+const { calculateSubscriptionPrice, resolveCanonicalPlan, CANONICAL_PLANS } = require('../config/pricing');
 const adminRepository = require('../repositories/admin.repository');
 const { AppError } = require('../utils/app-error');
 
@@ -79,19 +79,21 @@ const getDashboardOverview = async () => {
 
   let totalMRR = 0;
   for (const gym of revStats.activeGyms) {
+    const canonicalPlan = resolveCanonicalPlan(gym.subscription_plan);
     const pricing = calculateSubscriptionPrice(
-      gym.subscription_plan,
+      canonicalPlan,
       gym.is_multi_gym,
       gym.max_locations,
       gym.billing_cycle
     );
-    if (gym.billing_cycle === 'yearly') {
+    if (String(gym.billing_cycle).toLowerCase() === 'yearly') {
       totalMRR += Math.round((pricing.yearlyPrice / 12) * 100) / 100;
     } else {
       totalMRR += pricing.monthlyPrice;
     }
   }
-  const totalARR = totalMRR * 12;
+  totalMRR = Math.round(totalMRR * 100) / 100;
+  const totalARR = Math.round(totalMRR * 12 * 100) / 100;
 
   // 4. WhatsApp monthly usage and estimated cost
   const currentMonthStr = new Date().toISOString().slice(0, 7);
@@ -209,7 +211,7 @@ const suspendGym = async (gymId, reason, admin) => {
     VALUES ($1, $2, $3, $4, $5, COALESCE($6, CURRENT_DATE), COALESCE($7, CURRENT_DATE), 0, 'SUSPENDED', $8, $9, NOW())`,
     [
       gymId,
-      current.gym.subscriptionPlan || 'STARTER',
+      resolveCanonicalPlan(current.gym.subscriptionPlan),
       Boolean(current.gym.isMultiGym),
       Number(current.gym.maxLocations) || 1,
       current.gym.billingCycle || 'monthly',
@@ -249,7 +251,7 @@ const reactivateGym = async (gymId, reason, admin) => {
     VALUES ($1, $2, $3, $4, $5, COALESCE($6, CURRENT_DATE), COALESCE($7, CURRENT_DATE), 0, 'REACTIVATED', $8, $9, NOW())`,
     [
       gymId,
-      current.gym.subscriptionPlan || 'STARTER',
+      resolveCanonicalPlan(current.gym.subscriptionPlan),
       Boolean(current.gym.isMultiGym),
       Number(current.gym.maxLocations) || 1,
       current.gym.billingCycle || 'monthly',
@@ -289,7 +291,7 @@ const extendGymTrial = async (gymId, days, reason, admin) => {
     VALUES ($1, $2, $3, $4, $5, COALESCE($6, CURRENT_DATE), COALESCE($7, CURRENT_DATE), 0, 'TRIAL_EXTENDED', $8, $9, NOW())`,
     [
       gymId,
-      current.gym.subscriptionPlan || 'STARTER',
+      resolveCanonicalPlan(current.gym.subscriptionPlan),
       Boolean(current.gym.isMultiGym),
       Number(current.gym.maxLocations) || 1,
       current.gym.billingCycle || 'monthly',
@@ -319,15 +321,19 @@ const changeGymSubscription = async (gymId, data, reason, admin) => {
   const current = await adminRepository.findGymDetailAdmin(gymId);
   if (!current) throw new AppError(404, 'Gym not found.');
 
-  const planTiers = { STARTER: 1, PRO: 2, ENTERPRISE: 3 };
-  const currentPlan = String(current.gym.subscriptionPlan || 'STARTER').toUpperCase();
-  const targetPlan = String(data.subscriptionPlan || data.plan || currentPlan).toUpperCase();
-  const oldTier = planTiers[currentPlan] || 0;
-  const newTier = planTiers[targetPlan] || 0;
+  const planTiers = {
+    'Growth': 1,
+    'Pro': 2,
+    'Gym + Classes': 3
+  };
+  const currentPlan = resolveCanonicalPlan(current.gym.subscriptionPlan);
+  const targetPlan = resolveCanonicalPlan(data.subscriptionPlan || data.plan || currentPlan);
+  const oldTier = planTiers[currentPlan] || 1;
+  const newTier = planTiers[targetPlan] || 1;
   let inferredEventType = 'PLAN_CHANGE';
   if (newTier > oldTier) inferredEventType = 'PLAN_UPGRADE';
-  else if (newTier < oldTier && newTier > 0) inferredEventType = 'PLAN_DOWNGRADE';
-  else inferredEventType = 'PLAN_UPGRADE';
+  else if (newTier < oldTier) inferredEventType = 'PLAN_DOWNGRADE';
+  else inferredEventType = 'PLAN_CHANGE';
 
   const targetBillingCycle = data.billingCycle || current.gym.billingCycle || 'monthly';
   const targetMaxLocations = data.maxLocations !== undefined ? data.maxLocations : current.gym.maxLocations;
@@ -408,25 +414,28 @@ const getRevenueAnalytics = async () => {
 
   let mrr = 0;
   for (const gym of stats.activeGyms) {
+    const canonicalPlan = resolveCanonicalPlan(gym.subscription_plan);
     const pricing = calculateSubscriptionPrice(
-      gym.subscription_plan,
+      canonicalPlan,
       gym.is_multi_gym,
       gym.max_locations,
       gym.billing_cycle
     );
-    if (gym.billing_cycle === 'yearly') {
+    if (String(gym.billing_cycle).toLowerCase() === 'yearly') {
       mrr += Math.round((pricing.yearlyPrice / 12) * 100) / 100;
     } else {
       mrr += pricing.monthlyPrice;
     }
   }
+  mrr = Math.round(mrr * 100) / 100;
+  const arr = Math.round(mrr * 12 * 100) / 100;
 
   return {
     cashCollectedThisMonth: stats.currentMonthCash,
     cashCollectedLastMonth: stats.lastMonthCash,
     growthPct: stats.growthPct,
-    mrr: Math.round(mrr * 100) / 100,
-    arr: Math.round(mrr * 12 * 100) / 100,
+    mrr,
+    arr,
     byPlan: stats.byPlan,
     byCycle: stats.byCycle,
     trend

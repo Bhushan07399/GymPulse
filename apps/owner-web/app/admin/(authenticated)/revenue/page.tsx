@@ -75,7 +75,7 @@ export default function AdminRevenuePage() {
           <span className="font-bold text-emerald-300 uppercase tracking-wider block mb-0.5">
             SaaS Revenue Methodology
           </span>
-          MRR (Monthly Recurring Revenue) and ARR (Annual Recurring Revenue) are calculated strictly from active B2B gym platform subscriptions (e.g. Starter ₹1,499/mo, Pro ₹2,999/mo, Enterprise ₹5,999/mo). End-member fitness dues collected inside gyms belong exclusively to the gym owners and are not recognized as platform revenue.
+          MRR (Monthly Recurring Revenue) and ARR (Annual Recurring Revenue) are calculated strictly from active B2B gym platform subscriptions (Growth ₹499/mo, Pro ₹999/mo, Gym + Classes ₹1,499/mo). End-member fitness dues collected inside gyms belong exclusively to the gym owners and are not recognized as platform revenue.
         </div>
       </div>
 

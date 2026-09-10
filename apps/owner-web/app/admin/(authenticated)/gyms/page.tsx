@@ -109,9 +109,9 @@ export default function AdminGymsPage() {
             className="rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-medium text-slate-300 focus:border-emerald-500 focus:outline-none"
           >
             <option value="ALL">All Plans</option>
-            <option value="STARTER">STARTER</option>
-            <option value="PRO">PRO</option>
-            <option value="ENTERPRISE">ENTERPRISE</option>
+            <option value="Growth">Growth</option>
+            <option value="Pro">Pro</option>
+            <option value="Gym + Classes">Gym + Classes</option>
           </select>
         </div>
       </div>

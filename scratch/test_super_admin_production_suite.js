@@ -123,7 +123,7 @@ async function setupTestData() {
       subscription_plan, subscription_start_date, subscription_end_date, is_active,
       subscription_status, is_multi_gym, max_locations, billing_cycle
      ) VALUES ($1, 'Test Owner', $2, $3, '100 Marine Drive', 'Mumbai', 'Maharashtra', 'India', '400020',
-      'STARTER', CURRENT_DATE - INTERVAL '10 days', CURRENT_DATE + INTERVAL '20 days', true,
+      'Growth', CURRENT_DATE - INTERVAL '10 days', CURRENT_DATE + INTERVAL '20 days', true,
       'ACTIVE', false, 1, 'monthly'
      ) RETURNING *`,
     [testGymName, gymEmail, gymPhone]
@@ -315,6 +315,31 @@ async function runSuite() {
       assert(res.data.data.gyms.some((g) => g.id === testGymId));
     });
 
+    await runTest('GET /api/v1/admin/gyms returns only canonical plans and supports plan filtering', async () => {
+      const res = await request('GET', '/api/v1/admin/gyms?limit=50', {
+        Authorization: `Bearer ${superAdminToken}`,
+      });
+      assert.strictEqual(res.status, 200);
+      const canonicalPlans = ['Growth', 'Pro', 'Gym + Classes'];
+      for (const gym of res.data.data.gyms) {
+        assert(
+          canonicalPlans.includes(gym.subscriptionPlan),
+          `Gym plan "${gym.subscriptionPlan}" must be canonical (${canonicalPlans.join(', ')})`
+        );
+        assert.notStrictEqual(gym.subscriptionPlan.toUpperCase(), 'STARTER');
+        assert.notStrictEqual(gym.subscriptionPlan.toUpperCase(), 'ENTERPRISE');
+      }
+
+      // Filter by Growth
+      const filterRes = await request('GET', '/api/v1/admin/gyms?plan=Growth', {
+        Authorization: `Bearer ${superAdminToken}`,
+      });
+      assert.strictEqual(filterRes.status, 200);
+      for (const gym of filterRes.data.data.gyms) {
+        assert.strictEqual(gym.subscriptionPlan, 'Growth');
+      }
+    });
+
     // -------------------------------------------------------------
     // MODULE 5: GYM DETAIL & OPERATIONAL ACTIONS
     // -------------------------------------------------------------
@@ -395,10 +420,10 @@ async function runSuite() {
         'POST',
         `/api/v1/admin/gyms/${testGymId}/change-subscription`,
         { Authorization: `Bearer ${superAdminToken}` },
-        { subscriptionPlan: 'ENTERPRISE', billingCycle: 'yearly', reason: 'Customer upgraded to Enterprise Annual' }
+        { subscriptionPlan: 'Gym + Classes', billingCycle: 'yearly', reason: 'Customer upgraded to Gym + Classes Annual' }
       );
       assert.strictEqual(res.status, 200);
-      assert.strictEqual(res.data.data.subscription_plan, 'ENTERPRISE');
+      assert.strictEqual(res.data.data.subscription_plan, 'Gym + Classes');
       assert.strictEqual(res.data.data.billing_cycle, 'yearly');
 
       const histRes = await pool.query(
@@ -406,7 +431,7 @@ async function runSuite() {
         [testGymId]
       );
       assert.strictEqual(histRes.rows.length, 1);
-      assert.strictEqual(histRes.rows[0].plan, 'ENTERPRISE');
+      assert.strictEqual(histRes.rows[0].plan, 'Gym + Classes');
       assert.strictEqual(histRes.rows[0].billing_cycle, 'yearly');
     });
 
@@ -432,22 +457,43 @@ async function runSuite() {
     // -------------------------------------------------------------
     console.log('\n--- MODULE 6: Subscriptions & Lifecycle History ---');
 
-    await runTest('GET /api/v1/admin/subscriptions returns all tenant subscriptions', async () => {
+    await runTest('GET /api/v1/admin/subscriptions returns all tenant subscriptions with canonical plans', async () => {
       const res = await request('GET', '/api/v1/admin/subscriptions?search=OBO+Test+Center', {
         Authorization: `Bearer ${superAdminToken}`,
       });
       assert.strictEqual(res.status, 200);
       assert(Array.isArray(res.data.data.subscriptions));
       assert(res.data.data.subscriptions.some((s) => s.gymId === testGymId));
+
+      // Assert CANONICAL plans only (Growth, Pro, Gym + Classes) and no STARTER / ENTERPRISE
+      const canonicalPlans = ['Growth', 'Pro', 'Gym + Classes'];
+      for (const sub of res.data.data.subscriptions) {
+        assert(
+          canonicalPlans.includes(sub.plan),
+          `Subscription plan "${sub.plan}" must be one of ${canonicalPlans.join(', ')}`
+        );
+        assert.notStrictEqual(sub.plan.toUpperCase(), 'STARTER', 'STARTER must never appear in subscriptions');
+        assert.notStrictEqual(sub.plan.toUpperCase(), 'ENTERPRISE', 'ENTERPRISE must never appear in subscriptions');
+      }
     });
 
-    await runTest('GET /api/v1/admin/subscriptions/history returns global event history', async () => {
+    await runTest('GET /api/v1/admin/subscriptions/history returns global event history with canonical plans', async () => {
       const res = await request('GET', '/api/v1/admin/subscriptions/history?limit=50', {
         Authorization: `Bearer ${superAdminToken}`,
       });
       assert.strictEqual(res.status, 200);
       assert(Array.isArray(res.data.data.history));
       assert(res.data.data.history.some((h) => h.gymId === testGymId && h.eventType === 'PLAN_UPGRADE'));
+
+      const canonicalPlans = ['Growth', 'Pro', 'Gym + Classes'];
+      for (const item of res.data.data.history) {
+        assert(
+          canonicalPlans.includes(item.plan),
+          `History plan "${item.plan}" must be one of ${canonicalPlans.join(', ')}`
+        );
+        assert.notStrictEqual(item.plan.toUpperCase(), 'STARTER', 'STARTER must never appear in history');
+        assert.notStrictEqual(item.plan.toUpperCase(), 'ENTERPRISE', 'ENTERPRISE must never appear in history');
+      }
     });
 
     // -------------------------------------------------------------
@@ -455,17 +501,28 @@ async function runSuite() {
     // -------------------------------------------------------------
     console.log('\n--- MODULE 7: Revenue & Financial Analytics ---');
 
-    await runTest('GET /api/v1/admin/revenue calculates accurate B2B MRR and ARR', async () => {
+    await runTest('GET /api/v1/admin/revenue calculates accurate B2B MRR and ARR strictly from canonical plans', async () => {
       const res = await request('GET', '/api/v1/admin/revenue', {
         Authorization: `Bearer ${superAdminToken}`,
       });
       assert.strictEqual(res.status, 200);
       const data = res.data.data;
       assert(typeof data.mrr === 'number');
-      assert(data.mrr > 0, 'MRR must be positive with Enterprise gym active');
-      assert.strictEqual(data.arr, data.mrr * 12, 'ARR must strictly equal MRR * 12');
+      assert(data.mrr > 0, 'MRR must be positive with active gym');
+      assert.strictEqual(data.arr, Math.round(data.mrr * 12 * 100) / 100, 'ARR must strictly equal round(MRR * 12)');
       assert(Array.isArray(data.byPlan), 'Must return byPlan array');
       assert(Array.isArray(data.byCycle), 'Must return byCycle array');
+
+      // Canonical plans validation
+      const canonicalPlans = ['Growth', 'Pro', 'Gym + Classes'];
+      for (const planGroup of data.byPlan) {
+        assert(
+          canonicalPlans.includes(planGroup.plan),
+          `Revenue byPlan "${planGroup.plan}" must be one of ${canonicalPlans.join(', ')}`
+        );
+        assert.notStrictEqual(planGroup.plan.toUpperCase(), 'STARTER', 'STARTER must not exist in revenue byPlan');
+        assert.notStrictEqual(planGroup.plan.toUpperCase(), 'ENTERPRISE', 'ENTERPRISE must not exist in revenue byPlan');
+      }
     });
 
     // -------------------------------------------------------------

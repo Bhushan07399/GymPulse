@@ -50,7 +50,7 @@ export default function AdminGymDetailPage({
   const [reactivateNotes, setReactivateNotes] = useState("");
   const [extendDays, setExtendDays] = useState(14);
   const [extendReason, setExtendReason] = useState("");
-  const [selectedPlan, setSelectedPlan] = useState<"STARTER" | "PRO" | "ENTERPRISE">("PRO");
+  const [selectedPlan, setSelectedPlan] = useState<"Growth" | "Pro" | "Gym + Classes">("Pro");
   const [selectedCycle, setSelectedCycle] = useState<"monthly" | "yearly">("monthly");
   const [changePlanReason, setChangePlanReason] = useState("");
   const [maxLocationsInput, setMaxLocationsInput] = useState(1);
@@ -611,9 +611,9 @@ export default function AdminGymDetailPage({
                   onChange={(e) => setSelectedPlan(e.target.value as any)}
                   className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
                 >
-                  <option value="STARTER">STARTER</option>
-                  <option value="PRO">PRO</option>
-                  <option value="ENTERPRISE">ENTERPRISE</option>
+                  <option value="Growth">Growth (₹499/mo, ₹4,999/yr)</option>
+                  <option value="Pro">Pro (₹999/mo, ₹9,999/yr)</option>
+                  <option value="Gym + Classes">Gym + Classes (₹1,499/mo, ₹14,999/yr)</option>
                 </select>
               </div>
 
@@ -635,7 +635,7 @@ export default function AdminGymDetailPage({
                   type="text"
                   value={changePlanReason}
                   onChange={(e) => setChangePlanReason(e.target.value)}
-                  placeholder="e.g. Direct wire payment received for Enterprise annual"
+                  placeholder="e.g. Upgrade to Pro annual plan approved by finance"
                   className="w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-xs text-white placeholder-slate-500 focus:border-emerald-500 focus:outline-none"
                 />
               </div>

@@ -71,18 +71,29 @@ const MULTI_GYM_MONTHLY_PRICING = {
   }
 };
 
+const CANONICAL_PLANS = [BASE_PLANS.GROWTH, BASE_PLANS.PRO, BASE_PLANS.GYM_CLASSES];
+
+/**
+ * Resolves any plan name or legacy representation to canonical GymPulse plan:
+ * Growth, Pro, or Gym + Classes.
+ */
+function resolveCanonicalPlan(inputPlan) {
+  const s = String(inputPlan || '').trim().toLowerCase();
+  if (s.includes('class') || s === 'enterprise') {
+    return BASE_PLANS.GYM_CLASSES;
+  }
+  if (s.includes('pro')) {
+    return BASE_PLANS.PRO;
+  }
+  return BASE_PLANS.GROWTH;
+}
+
 /**
  * Calculates official subscription price, per-location rates, and savings.
  */
 function calculateSubscriptionPrice(basePlan = 'Growth', isMultiGym = false, locationCount = 1, billingCycle = 'monthly') {
-  // Normalize plan
-  let plan = BASE_PLANS.GROWTH;
-  const lower = String(basePlan).toLowerCase();
-  if (lower.includes('class')) {
-    plan = BASE_PLANS.GYM_CLASSES;
-  } else if (lower.includes('pro')) {
-    plan = BASE_PLANS.PRO;
-  }
+  // Normalize plan to canonical
+  const plan = resolveCanonicalPlan(basePlan);
 
   const cycle = billingCycle === 'yearly' ? 'yearly' : 'monthly';
   const locCount = Math.max(1, Math.min(10, parseInt(locationCount, 10) || 1));
@@ -140,7 +151,9 @@ function calculateSubscriptionPrice(basePlan = 'Growth', isMultiGym = false, loc
 
 module.exports = {
   BASE_PLANS,
+  CANONICAL_PLANS,
   SINGLE_GYM_PRICING,
   MULTI_GYM_MONTHLY_PRICING,
-  calculateSubscriptionPrice
+  calculateSubscriptionPrice,
+  resolveCanonicalPlan
 };

@@ -1,4 +1,5 @@
 const { pool } = require('../db/pool');
+const { resolveCanonicalPlan } = require('../config/pricing');
 
 // =============================================================================
 // 1. ADMIN USER MANAGEMENT
@@ -91,8 +92,9 @@ const listGymsAdmin = async ({
     conditions.push(`UPPER(g.subscription_status) = $${params.length}`);
   }
 
-  if (plan && plan.trim()) {
-    params.push(plan.trim());
+  if (plan && plan.trim() && plan.trim().toUpperCase() !== 'ALL') {
+    const canonical = resolveCanonicalPlan(plan.trim());
+    params.push(canonical);
     conditions.push(`LOWER(g.subscription_plan) = LOWER($${params.length})`);
   }
 
@@ -166,7 +168,7 @@ const listGymsAdmin = async ({
       phone: r.phone,
       city: r.city,
       state: r.state,
-      subscriptionPlan: r.subscription_plan,
+      subscriptionPlan: resolveCanonicalPlan(r.subscription_plan),
       subscriptionStatus: r.subscription_status,
       isMultiGym: Boolean(r.is_multi_gym),
       maxLocations: Number(r.max_locations || 1),
@@ -276,7 +278,7 @@ const findGymDetailAdmin = async (gymId) => {
       city: gym.city,
       state: gym.state,
       pincode: gym.pincode,
-      subscriptionPlan: gym.subscription_plan,
+      subscriptionPlan: resolveCanonicalPlan(gym.subscription_plan),
       subscriptionStatus: gym.subscription_status,
       isMultiGym: Boolean(gym.is_multi_gym),
       maxLocations: Number(gym.max_locations || 1),
@@ -460,8 +462,9 @@ const listSubscriptionsAdmin = async ({
     conditions.push(`(LOWER(g.name) LIKE $${params.length} OR LOWER(COALESCE(g.owner_name, '')) LIKE $${params.length})`);
   }
 
-  if (plan && plan.trim()) {
-    params.push(plan.trim());
+  if (plan && plan.trim() && plan.trim().toUpperCase() !== 'ALL') {
+    const canonical = resolveCanonicalPlan(plan.trim());
+    params.push(canonical);
     conditions.push(`LOWER(g.subscription_plan) = LOWER($${params.length})`);
   }
 
@@ -526,7 +529,7 @@ const listSubscriptionsAdmin = async ({
       gymId: r.gym_id,
       gymName: r.gym_name,
       ownerName: r.owner_name,
-      plan: r.subscription_plan,
+      plan: resolveCanonicalPlan(r.subscription_plan),
       status: r.subscription_status,
       isMultiGym: Boolean(r.is_multi_gym),
       locations: Number(r.max_locations || 1),
@@ -578,7 +581,7 @@ const listSubscriptionHistoryAdmin = async (gymId = null, limit = 50) => {
     id: r.id,
     gymId: r.gym_id,
     gymName: r.gym_name,
-    plan: r.plan,
+    plan: resolveCanonicalPlan(r.plan),
     isMultiGym: Boolean(r.is_multi_gym),
     maxLocations: Number(r.max_locations),
     billingCycle: r.billing_cycle,
@@ -617,11 +620,18 @@ const getPlatformRevenueStats = async () => {
     ? Math.round(((currentMonthCash - lastMonthCash) / lastMonthCash) * 1000) / 10
     : (currentMonthCash > 0 ? 100 : 0);
 
-  // Revenue by Plan
+  // Revenue by Plan strictly mapped to canonical plans (Growth, Pro, Gym + Classes)
   const byPlanRes = await pool.query(`
-    SELECT plan, COALESCE(SUM(amount_paid), 0) AS total, COUNT(*) AS count
+    SELECT
+      CASE
+        WHEN LOWER(plan) LIKE '%class%' OR LOWER(plan) = 'enterprise' THEN 'Gym + Classes'
+        WHEN LOWER(plan) LIKE '%pro%' THEN 'Pro'
+        ELSE 'Growth'
+      END AS plan,
+      COALESCE(SUM(amount_paid), 0) AS total,
+      COUNT(*) AS count
     FROM gym_subscription_history
-    GROUP BY plan
+    GROUP BY 1
     ORDER BY total DESC
   `);
 
@@ -906,7 +916,7 @@ const getPerGymUsageAndCosts = async (month = null) => {
       return {
         gymId: r.gym_id,
         gymName: r.gym_name,
-        subscriptionPlan: r.subscription_plan,
+        subscriptionPlan: resolveCanonicalPlan(r.subscription_plan),
         subscriptionStatus: r.subscription_status,
         isMultiGym: Boolean(r.is_multi_gym),
         locations: Number(r.max_locations || 1),
