@@ -1,5 +1,6 @@
 const { pool } = require('./pool');
 const { logger } = require('../config/logger');
+const bcrypt = require('bcrypt');
 
 const ensureSchema = async () => {
   try {
@@ -447,6 +448,123 @@ const ensureSchema = async () => {
       CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_idempotency ON whatsapp_logs (gym_id, idempotency_key);
       CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_provider_id ON whatsapp_logs (provider_message_id);
     `);
+
+    // 24. Create Super Admin tables: admin_users, admin_audit_logs, platform_whatsapp_cost_rules, platform_operating_costs, platform_alerts, platform_settings
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS admin_users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email VARCHAR(255) NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        role VARCHAR(50) NOT NULL DEFAULT 'SUPER_ADMIN',
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        last_login_at TIMESTAMPTZ NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users (LOWER(email));
+
+      CREATE TABLE IF NOT EXISTS admin_audit_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        admin_user_id UUID NULL REFERENCES admin_users(id) ON DELETE SET NULL,
+        admin_email VARCHAR(255) NOT NULL,
+        action VARCHAR(100) NOT NULL,
+        entity_type VARCHAR(50) NOT NULL,
+        entity_id VARCHAR(255) NULL,
+        gym_id UUID NULL REFERENCES gyms(id) ON DELETE SET NULL,
+        reason TEXT NULL,
+        before_state JSONB NULL,
+        after_state JSONB NULL,
+        ip_address VARCHAR(45) NULL,
+        user_agent TEXT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_logs (created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_admin_audit_gym ON admin_audit_logs (gym_id);
+      CREATE INDEX IF NOT EXISTS idx_admin_audit_action ON admin_audit_logs (action);
+
+      CREATE TABLE IF NOT EXISTS platform_whatsapp_cost_rules (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        provider VARCHAR(50) NOT NULL DEFAULT 'META',
+        country_code VARCHAR(10) NOT NULL DEFAULT 'IN',
+        category VARCHAR(50) NOT NULL DEFAULT 'ALL',
+        unit_cost NUMERIC(10, 4) NOT NULL DEFAULT 0.1200,
+        currency VARCHAR(10) NOT NULL DEFAULT 'INR',
+        effective_from DATE NOT NULL DEFAULT CURRENT_DATE,
+        effective_to DATE NULL,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        notes TEXT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_whatsapp_cost_rules ON platform_whatsapp_cost_rules (provider, country_code, is_active);
+
+      CREATE TABLE IF NOT EXISTS platform_operating_costs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        month VARCHAR(7) NOT NULL,
+        category VARCHAR(50) NOT NULL,
+        cost_type VARCHAR(20) NOT NULL DEFAULT 'SHARED',
+        gym_id UUID NULL REFERENCES gyms(id) ON DELETE SET NULL,
+        provider VARCHAR(100) NOT NULL,
+        amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+        currency VARCHAR(10) NOT NULL DEFAULT 'INR',
+        notes TEXT NULL,
+        created_by UUID NULL REFERENCES admin_users(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_platform_operating_costs_month ON platform_operating_costs (month, category);
+
+      CREATE TABLE IF NOT EXISTS platform_alerts (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        severity VARCHAR(20) NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        description TEXT NOT NULL,
+        alert_key VARCHAR(255) NOT NULL,
+        gym_id UUID NULL REFERENCES gyms(id) ON DELETE CASCADE,
+        status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+        acknowledged_by UUID NULL REFERENCES admin_users(id) ON DELETE SET NULL,
+        acknowledged_at TIMESTAMPTZ NULL,
+        resolved_by UUID NULL REFERENCES admin_users(id) ON DELETE SET NULL,
+        resolved_at TIMESTAMPTZ NULL,
+        metadata JSONB NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_platform_alerts_status ON platform_alerts (status, severity);
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_platform_alerts_active_key ON platform_alerts (alert_key) WHERE status = 'ACTIVE';
+
+      CREATE TABLE IF NOT EXISTS platform_settings (
+        key VARCHAR(100) PRIMARY KEY,
+        value JSONB NOT NULL,
+        description TEXT NULL,
+        updated_by UUID NULL REFERENCES admin_users(id) ON DELETE SET NULL,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      ALTER TABLE gym_subscription_history ADD COLUMN IF NOT EXISTS event_type VARCHAR(50) NOT NULL DEFAULT 'RENEWAL';
+      ALTER TABLE gym_subscription_history ADD COLUMN IF NOT EXISTS notes TEXT NULL;
+      ALTER TABLE gym_subscription_history ADD COLUMN IF NOT EXISTS created_by_admin_id UUID NULL REFERENCES admin_users(id) ON DELETE SET NULL;
+    `);
+
+    // Seed default WhatsApp cost rule if empty
+    const costRulesCount = await pool.query('SELECT COUNT(*) FROM platform_whatsapp_cost_rules');
+    if (parseInt(costRulesCount.rows[0].count, 10) === 0) {
+      await pool.query(`
+        INSERT INTO platform_whatsapp_cost_rules (provider, country_code, category, unit_cost, currency, notes)
+        VALUES ('META', 'IN', 'ALL', 0.1200, 'INR', 'Default Meta India utility & service pricing')
+      `);
+    }
+
+    // Seed default Super Admin operator if empty
+    const adminCount = await pool.query('SELECT COUNT(*) FROM admin_users');
+    if (parseInt(adminCount.rows[0].count, 10) === 0) {
+      const defaultPasswordHash = await bcrypt.hash('Admin@123456', 10);
+      await pool.query(`
+        INSERT INTO admin_users (email, password_hash, name, role, is_active)
+        VALUES ('admin@obo.fit', $1, 'Master Super Admin', 'SUPER_ADMIN', TRUE)
+      `, [defaultPasswordHash]);
+    }
 
     logger.info('Database schema migration check completed successfully.');
   } catch (err) {

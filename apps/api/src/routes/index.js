@@ -13,13 +13,14 @@ const { whatsappRouter } = require('./whatsapp.routes');
 const { classesRouter } = require('./classes.routes');
 const { classPlansRouter } = require('./class-plans.routes');
 const { bmiRouter } = require('./bmi.routes');
-
 const { memberAppRouter } = require('./member-app.routes');
+const { adminRouter } = require('./admin.routes');
 
 const apiRouter = Router();
 
 apiRouter.use('/health', healthRouter);
 apiRouter.use('/api/v1/auth', authRouter);
+apiRouter.use('/api/v1/admin', adminRouter);
 apiRouter.use('/api/v1/gyms', gymRouter);
 apiRouter.use('/api/v1/membership-plans', membershipPlanRouter);
 apiRouter.use('/api/v1/members', memberRouter);
