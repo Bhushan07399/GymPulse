@@ -98,11 +98,14 @@ const getDashboardOverview = async () => {
   const totalEstimatedCostsThisMonth = Math.round((totalWhatsAppCostThisMonth + totalOperatingCostsThisMonth) * 100) / 100;
 
   // 6. Estimated Gross Contribution
+  const hasRecordedCash = Boolean(revStats.hasRecordedCash);
   const currentRevenue = revStats.currentMonthCash;
-  const estimatedGrossContribution = Math.round((currentRevenue - totalEstimatedCostsThisMonth) * 100) / 100;
-  const contributionMarginPct = currentRevenue > 0
+  const estimatedGrossContribution = hasRecordedCash
+    ? Math.round(((currentRevenue || 0) - totalEstimatedCostsThisMonth) * 100) / 100
+    : null;
+  const contributionMarginPct = (hasRecordedCash && currentRevenue > 0)
     ? Math.round((estimatedGrossContribution / currentRevenue) * 1000) / 10
-    : 0;
+    : null;
 
   // 7. Trial -> Paid conversion % & Churn %
   const conversionRes = await pool.query(`
@@ -147,6 +150,7 @@ const getDashboardOverview = async () => {
       mrr: Math.round(totalMRR * 100) / 100,
       arr: Math.round(totalARR * 100) / 100,
       revenueThisMonth: currentRevenue,
+      hasRecordedCash,
       revenueLastMonth: revStats.lastMonthCash,
       revenueGrowthPct: revStats.growthPct,
       estimatedPlatformCosts: totalEstimatedCostsThisMonth,
@@ -430,21 +434,25 @@ const getUsageAndCosts = async (month) => {
 
   const totalOperatingCosts = Math.round((data.totalSharedCosts + totalDirectCosts) * 100) / 100;
   const totalAllCosts = Math.round((totalWhatsAppCost + totalOperatingCosts) * 100) / 100;
-  const estimatedGrossContribution = Math.round((totalSubscriptionRevenue - totalAllCosts) * 100) / 100;
-  const contributionMarginPct = totalSubscriptionRevenue > 0
+  const hasRecordedCash = Boolean(data.hasRecordedCash);
+  const estimatedGrossContribution = hasRecordedCash
+    ? Math.round((totalSubscriptionRevenue - totalAllCosts) * 100) / 100
+    : null;
+  const contributionMarginPct = (hasRecordedCash && totalSubscriptionRevenue > 0)
     ? Math.round((estimatedGrossContribution / totalSubscriptionRevenue) * 1000) / 10
-    : 0;
+    : null;
 
   // Identify top usage/cost gyms
   const topWhatsAppUsage = [...data.gyms].sort((a, b) => b.whatsapp.attempted - a.whatsapp.attempted).slice(0, 5);
   const topWhatsAppCost = [...data.gyms].sort((a, b) => b.whatsapp.estimatedCost - a.whatsapp.estimatedCost).slice(0, 5);
   const highestRevenue = [...data.gyms].sort((a, b) => b.financials.subscriptionRevenue - a.financials.subscriptionRevenue).slice(0, 5);
-  const lowestContribution = [...data.gyms].sort((a, b) => a.financials.estimatedGrossContribution - b.financials.estimatedGrossContribution).slice(0, 5);
+  const lowestContribution = [...data.gyms].sort((a, b) => (a.financials.estimatedGrossContribution ?? 0) - (b.financials.estimatedGrossContribution ?? 0)).slice(0, 5);
 
   return {
     month: currentMonthStr,
     companyEconomics: {
-      totalPlatformSubscriptionRevenue: totalSubscriptionRevenue,
+      totalPlatformSubscriptionRevenue: hasRecordedCash ? totalSubscriptionRevenue : null,
+      hasRecordedCash,
       totalWhatsAppCost: Math.round(totalWhatsAppCost * 100) / 100,
       totalOperatingCosts,
       totalCosts: totalAllCosts,

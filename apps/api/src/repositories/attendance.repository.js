@@ -63,9 +63,11 @@ const autoFinalizeExpiredAttendance = async (gymId = null) => {
         ${gymId ? 'AND gym_id = $1' : ''}
     `;
     const params = gymId ? [gymId] : [];
-    await pool.query(query, params);
+    const res = await pool.query(query, params);
+    return res.rowCount || 0;
   } catch (err) {
     console.error('Error auto-finalizing expired attendance:', err);
+    return 0;
   }
 };
 

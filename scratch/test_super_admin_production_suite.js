@@ -558,7 +558,7 @@ async function runSuite() {
       const data = res.data.data;
       assert(data.companyEconomics, 'Must return companyEconomics');
       assert(typeof data.companyEconomics.totalCosts === 'number');
-      assert(typeof data.companyEconomics.contributionMarginPct === 'number');
+      assert(data.companyEconomics.contributionMarginPct === null || typeof data.companyEconomics.contributionMarginPct === 'number');
       assert(Array.isArray(data.gyms), 'Must return gyms array');
     });
 

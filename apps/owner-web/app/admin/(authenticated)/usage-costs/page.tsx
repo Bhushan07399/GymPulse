@@ -97,12 +97,13 @@ export default function AdminUsageCostsPage() {
   }
 
   const economics = usageData?.companyEconomics || {
-    totalPlatformSubscriptionRevenue: 0,
+    totalPlatformSubscriptionRevenue: null,
+    hasRecordedCash: false,
     totalWhatsAppCost: 0,
     totalOperatingCosts: 0,
     totalCosts: 0,
-    estimatedGrossContribution: 0,
-    contributionMarginPct: 100,
+    estimatedGrossContribution: null,
+    contributionMarginPct: null,
     unitCostUsed: 0.12,
     activeGymsCount: 0,
     allocatedSharedCostPerGym: 0,
@@ -194,9 +195,15 @@ export default function AdminUsageCostsPage() {
             <BarChart3 className="h-3.5 w-3.5 text-teal-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-teal-400">
-            ₹{economics.totalPlatformSubscriptionRevenue.toLocaleString()}
+            {economics.hasRecordedCash ? (
+              <>₹{(economics.totalPlatformSubscriptionRevenue || 0).toLocaleString()}</>
+            ) : (
+              <span className="text-base font-semibold text-slate-400">Gateway pending</span>
+            )}
           </div>
-          <div className="mt-1 text-[10px] text-slate-400">Subscription cash collected</div>
+          <div className="mt-1 text-[10px] text-slate-400">
+            {economics.hasRecordedCash ? 'Subscription cash collected' : 'Direct gateway ledger pending'}
+          </div>
         </div>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4">
@@ -205,7 +212,11 @@ export default function AdminUsageCostsPage() {
             <Percent className="h-3.5 w-3.5 text-emerald-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-emerald-400">
-            {economics.contributionMarginPct}%
+            {economics.hasRecordedCash && economics.contributionMarginPct !== null ? (
+              <>{economics.contributionMarginPct}%</>
+            ) : (
+              <span className="text-base font-semibold text-slate-400">Pending ledger</span>
+            )}
           </div>
           <div className="mt-1 text-[10px] text-slate-400">Gross profit contribution</div>
         </div>

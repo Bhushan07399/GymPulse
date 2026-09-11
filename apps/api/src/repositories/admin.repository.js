@@ -838,6 +838,12 @@ const getPerGymUsageAndCosts = async (month = null) => {
   );
   const totalSharedCosts = Number(sharedCostRes.rows[0]?.total_shared || 0);
 
+  // Check if real cash collections have been recorded in SaaS history
+  const cashCheck = await pool.query(
+    `SELECT COUNT(*) AS count FROM gym_subscription_history WHERE amount_paid > 0`
+  );
+  const hasRecordedCash = parseInt(cashCheck.rows[0]?.count || 0, 10) > 0;
+
   // Active gyms count in this month
   const activeGymsCountRes = await pool.query(
     `SELECT COUNT(*) AS count
@@ -904,6 +910,7 @@ const getPerGymUsageAndCosts = async (month = null) => {
     totalSharedCosts,
     activeGymsCount,
     allocatedSharedCostPerGym,
+    hasRecordedCash,
     gyms: result.rows.map((r) => {
       const waDelivered = Number(r.wa_delivered);
       const estimatedWaCost = Math.round(waDelivered * unitCost * 100) / 100;

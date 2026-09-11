@@ -1,4 +1,5 @@
 const notificationRepository = require('../repositories/notification.repository');
+const { autoFinalizeExpiredAttendance } = require('../repositories/attendance.repository');
 const whatsappService = require('./whatsapp.service');
 const { logger } = require('../config/logger');
 
@@ -14,6 +15,13 @@ const runAutomatedNotifications = async () => {
   let skippedCount = 0;
 
   try {
+    // 1. Auto-checkout attendance records exceeding 4 hours
+    try {
+      await autoFinalizeExpiredAttendance();
+    } catch (checkoutErr) {
+      logger.error({ checkoutErr }, 'Error auto-finalizing expired attendance in background scheduler');
+    }
+
     const gyms = await notificationRepository.listActiveGymsWithSettings();
 
     for (const gym of gyms) {

@@ -28,12 +28,13 @@ export interface DashboardPrimaryMetrics {
 export interface DashboardBusinessMetrics {
   mrr: number;
   arr: number;
-  revenueThisMonth: number;
-  revenueLastMonth: number;
+  revenueThisMonth: number | null;
+  hasRecordedCash?: boolean;
+  revenueLastMonth: number | null;
   revenueGrowthPct: number;
   estimatedPlatformCosts: number;
-  estimatedGrossContribution: number;
-  contributionMarginPct: number;
+  estimatedGrossContribution: number | null;
+  contributionMarginPct: number | null;
   trialConversionRatePct: number;
   churnRatePct: number;
 }
@@ -263,12 +264,13 @@ export interface PerGymUsageAndCost {
 export interface UsageAndCostsData {
   month: string;
   companyEconomics: {
-    totalPlatformSubscriptionRevenue: number;
+    totalPlatformSubscriptionRevenue: number | null;
+    hasRecordedCash?: boolean;
     totalWhatsAppCost: number;
     totalOperatingCosts: number;
     totalCosts: number;
-    estimatedGrossContribution: number;
-    contributionMarginPct: number;
+    estimatedGrossContribution: number | null;
+    contributionMarginPct: number | null;
     unitCostUsed: number;
     activeGymsCount: number;
     allocatedSharedCostPerGym: number;

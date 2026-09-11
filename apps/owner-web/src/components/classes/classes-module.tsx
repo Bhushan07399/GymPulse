@@ -1947,7 +1947,7 @@ function ClassModal({
                 type="text"
                 value={instructorName}
                 onChange={(e) => setInstructorName(e.target.value)}
-                placeholder="e.g. Bhushan, Rahul"
+                placeholder="e.g. Coach Alex, Sarah"
                 className="w-full rounded-xl border border-slate-200 p-2.5 font-medium outline-none focus:border-slate-800"
               />
             </div>

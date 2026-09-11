@@ -563,6 +563,14 @@ const ensureSchema = async () => {
       UPDATE gym_subscription_history
       SET plan = 'Gym + Classes'
       WHERE UPPER(plan) = 'ENTERPRISE';
+
+      -- 26. High-scale tenant composite indexes for performance
+      CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_gym_sent ON whatsapp_logs (gym_id, sent_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_whatsapp_logs_dedup ON whatsapp_logs (gym_id, member_id, automation_type, sent_at);
+      CREATE INDEX IF NOT EXISTS idx_class_attendance_gym_marked ON class_attendance (gym_id, marked_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_class_attendance_gym_member ON class_attendance (gym_id, member_id);
+      CREATE INDEX IF NOT EXISTS idx_class_sessions_gym_date ON class_sessions (gym_id, session_date DESC);
+      CREATE INDEX IF NOT EXISTS idx_class_memberships_gym_expiry ON class_memberships (gym_id, status, expiry_date);
     `);
 
     // Seed default WhatsApp cost rule if empty
