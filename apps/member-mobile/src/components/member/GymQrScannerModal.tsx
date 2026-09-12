@@ -154,7 +154,7 @@ export const GymQrScannerModal = ({ visible, onClose, onSuccess }: GymQrScannerM
                 <Text style={styles.permissionIcon}>📷</Text>
                 <Text style={styles.permissionTitle}>Camera Access Required</Text>
                 <Text style={styles.permissionDesc}>
-                  GymPulse needs camera access to scan the gym's physical QR code for member check-in.
+                  obo requires camera access to scan the gym's physical QR code for member check-in.
                 </Text>
                 <TouchableOpacity style={styles.primaryBtn} onPress={requestPermission}>
                   <Text style={styles.primaryBtnText}>Grant Camera Permission</Text>

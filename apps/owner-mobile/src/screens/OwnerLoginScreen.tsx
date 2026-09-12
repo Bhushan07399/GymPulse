@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import '../lib/i18n';
 import { Colors } from '../theme/colors';
@@ -45,11 +45,13 @@ export const OwnerLoginScreen = () => {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
         <View style={styles.headerBox}>
-          <View style={styles.logoBadge}>
-            <Text style={styles.logoText}>GP</Text>
-          </View>
-          <Text style={styles.title}>GymPulse Owner</Text>
-          <Text style={styles.subtitle}>Management & Reception Desk Portal</Text>
+          <Image
+            source={require('../../assets/symbol-dark.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+          <Text style={styles.title}>obo Owner</Text>
+          <Text style={styles.subtitle}>Smart Gym Management Software</Text>
         </View>
 
         <View style={styles.card}>
@@ -63,7 +65,7 @@ export const OwnerLoginScreen = () => {
 
           <Input
             label={t('auth.emailOrUsername', 'Email or Username')}
-            placeholder="owner@gympulse.com"
+            placeholder="owner@yourgym.com"
             value={email}
             onChangeText={(text) => {
               setEmail(text);
@@ -92,7 +94,7 @@ export const OwnerLoginScreen = () => {
           />
         </View>
 
-        <Text style={styles.footerText}>GymPulse SaaS • Production Management App</Text>
+        <Text style={styles.footerText}>obo • Smart Gym Management Software</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -113,19 +115,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 28,
   },
-  logoBadge: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+  logoImage: {
+    width: 64,
+    height: 64,
     marginBottom: 12,
-  },
-  logoText: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: Colors.slate900,
   },
   title: {
     fontSize: 26,

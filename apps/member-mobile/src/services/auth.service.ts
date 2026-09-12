@@ -18,7 +18,7 @@ export const memberAuthService = {
       lastName: authData.member?.lastName || authData.member?.last_name || '',
       phone: authData.member?.phone || '',
       email: authData.member?.email,
-      gymName: authData.member?.gymName || authData.gymName || 'GymPulse Gym',
+      gymName: authData.member?.gymName || authData.gymName || 'My Gym',
       role: 'Member',
     };
 

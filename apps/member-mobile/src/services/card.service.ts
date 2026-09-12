@@ -9,7 +9,7 @@ export const memberCardService = {
     return {
       memberId: c.memberId || c.member_id || '',
       name: c.name || `${c.firstName || ''} ${c.lastName || ''}`.trim() || 'Member',
-      gymName: c.gymName || 'GymPulse Gym',
+      gymName: c.gymName || 'My Gym',
       gymId: c.gymId || '',
       qrToken: c.qrToken || c.qr_code || `GYMPULSE-MEMBER:${c.memberId || c.id}:${c.gymId}`,
       status: c.status || 'Active',

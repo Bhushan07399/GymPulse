@@ -1,6 +1,6 @@
-# GymPulse Monorepo
+# obo — Smart Gym Management Software
 
-GymPulse is a multi-tenant SaaS gym management platform built for gym owners, staff, and gym members. It features a shared PostgreSQL database, a unified Express REST API, a Next.js web dashboard for gym owners, native mobile apps for both gym owners and members, and full trilingual internationalization (English, Hindi, Marathi).
+obo is a multi-tenant SaaS gym management software built for gym owners, staff, and gym members. It features a shared PostgreSQL database, a unified Express REST API, a Next.js web dashboard for gym owners, native mobile apps for both gym owners and members, and full trilingual internationalization (English, Hindi, Marathi).
 
 ---
 
@@ -15,6 +15,7 @@ GymPulse/
 │   └── member-mobile/   # Gym Member Mobile App (React Native + Expo)
 │
 ├── packages/
+│   ├── branding/        # Approved obo Brand Package & Asset Catalog
 │   ├── shared/          # Shared DTOs, Enums, and Utility Functions
 │   └── i18n/            # Trilingual i18n Dictionaries (en, hi, mr) & TypeScript Types
 │
@@ -37,7 +38,7 @@ GymPulse/
 - Shared locale dictionaries in `packages/i18n/locales/` (`en.json`, `hi.json`, `mr.json`).
 - 100% key parity across all 3 languages (353 keys each across 20 namespaces).
 - Language switchers with `localStorage` (Web) and `expo-secure-store` (Mobile) persistence.
-- Brand name "GymPulse" remains untranslated in English.
+- Brand name "obo" remains untranslated in English.
 
 ---
 

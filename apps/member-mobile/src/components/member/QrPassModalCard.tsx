@@ -13,7 +13,7 @@ export const QrPassModalCard = ({ card }: QrPassModalCardProps) => {
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <Text style={styles.logoTitle}>GYMPULSE PASS</Text>
+        <Text style={styles.logoTitle}>obo DIGITAL PASS</Text>
         <StatusBadge status={card.status} />
       </View>
 

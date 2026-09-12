@@ -84,7 +84,7 @@ export default function CreateAccountPage() {
               CREATE GYM WORKSPACE
             </span>
             <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
-              Register Your Gym on GymPulse
+              Register Your Gym on obo
             </h1>
             <p className="mt-1 text-xs sm:text-sm text-slate-500 font-medium">
               Start managing members, attendance, memberships, and revenue in one platform.
@@ -158,7 +158,7 @@ export default function CreateAccountPage() {
                   <label className="font-semibold text-slate-700 block mb-1">Email Address</label>
                   <input
                     type="email"
-                    placeholder="owner@gympulse.com"
+                    placeholder="owner@yourgym.com"
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 p-3 text-xs text-slate-900"

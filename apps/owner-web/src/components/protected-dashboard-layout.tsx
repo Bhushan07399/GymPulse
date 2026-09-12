@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
@@ -234,14 +235,18 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
   const sidebar = (
     <aside className="flex h-full w-72 flex-col bg-[#0F172A] px-4 py-5 text-slate-100 border-r border-slate-800">
       {/* Top Branding Header */}
-      <div className="flex items-center gap-3 px-3 pb-5 border-b border-slate-800 mb-4">
-        <span className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-black text-xs shadow-md">
-          GP
-        </span>
+      <div className="flex items-center gap-3 px-2 pb-5 border-b border-slate-800 mb-4">
+        <Image
+          src="/assets/branding/symbol/symbol-dark.png"
+          alt="obo"
+          width={36}
+          height={36}
+          className="size-9 rounded-xl object-contain"
+        />
         <div>
-          <p className="text-base font-extrabold tracking-tight text-white leading-tight">GymPulse</p>
+          <p className="text-base font-extrabold tracking-tight text-white leading-tight">obo</p>
           <p className="text-[11px] text-slate-400 font-medium">
-            {isReceptionist ? t('auth.signIn', 'Receptionist Portal') : t('nav.management', 'Gym Management SaaS')}
+            {isReceptionist ? t('auth.signIn', 'Receptionist Portal') : t('nav.management', 'Smart Gym Management')}
           </p>
         </div>
       </div>
@@ -327,11 +332,15 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
       {/* Mobile Top Header */}
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-[#0F172A] px-4 text-white lg:hidden">
         <div className="flex items-center gap-2.5">
-          <span className="grid size-8 place-items-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-black text-xs">
-            GP
-          </span>
+          <Image
+            src="/assets/branding/symbol/symbol-dark.png"
+            alt="obo"
+            width={32}
+            height={32}
+            className="size-8 rounded-xl object-contain"
+          />
           <div>
-            <span className="text-sm font-extrabold tracking-tight text-white block">GymPulse</span>
+            <span className="text-sm font-extrabold tracking-tight text-white block">obo</span>
             <span className="text-[10px] text-slate-400 font-medium block">
               {isReceptionist ? "Receptionist" : "Management"}
             </span>

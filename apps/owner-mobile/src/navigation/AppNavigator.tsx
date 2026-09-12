@@ -22,7 +22,7 @@ export const AppNavigator = () => {
   if (isLoading) {
     return (
       <ScreenContainer scrollable={false}>
-        <LoadingState message="Restoring GymPulse session..." />
+        <LoadingState message="Restoring session..." />
       </ScreenContainer>
     );
   }

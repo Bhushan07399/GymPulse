@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -16,23 +17,20 @@ import {
   Users,
 } from "lucide-react";
 
-export default function GymPulseEntryPage() {
+export default function OboEntryPage() {
   return (
     <main className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex flex-col justify-between p-4 sm:p-6 lg:p-8">
       {/* Top Header */}
       <header className="mx-auto flex w-full max-w-5xl items-center justify-between py-2">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#0F172A] font-extrabold text-sm text-white shadow-lg">
-            GP
-          </div>
-          <div>
-            <span className="font-extrabold text-xl tracking-tight text-[#0F172A]">
-              GymPulse
-            </span>
-            <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 border border-slate-200">
-              SaaS Platform
-            </span>
-          </div>
+          <Image
+            src="/assets/branding/horizontal/logo-horizontal.png"
+            alt="obo — Smart Gym Management Software"
+            width={240}
+            height={48}
+            className="h-10 w-auto object-contain"
+            priority
+          />
         </div>
 
         <div className="flex items-center gap-3">
@@ -55,12 +53,12 @@ export default function GymPulseEntryPage() {
       {/* Main Gym Management Hero */}
       <section className="mx-auto my-auto w-full max-w-5xl py-8">
         <div className="text-center max-w-2xl mx-auto space-y-3 mb-10">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-extrabold text-blue-700 border border-blue-200/80">
-            <Sparkles className="h-3.5 w-3.5 fill-blue-600" />
-            GYM MANAGEMENT PLATFORM
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-900/5 px-3 py-1 text-xs font-bold text-slate-800 border border-slate-200">
+            <Sparkles className="h-3.5 w-3.5 fill-slate-700 text-slate-700" />
+            Smart Gym Management Software
           </span>
           <h1 className="text-4xl font-extrabold tracking-tight text-[#0F172A] sm:text-5xl">
-            Manage your gym with GymPulse
+            Manage your gym with obo
           </h1>
           <p className="text-sm sm:text-base text-slate-500 font-medium">
             The dedicated management portal for gym owners and authorized staff. Streamline member enrollments, attendance rosters, recurring dues, and business analytics.
@@ -212,7 +210,7 @@ export default function GymPulseEntryPage() {
 
       {/* Footer */}
       <footer className="mx-auto w-full max-w-5xl py-4 text-center text-xs text-slate-400 font-medium">
-        © {new Date().getFullYear()} GymPulse SaaS Platform. All rights reserved.
+        © {new Date().getFullYear()} obo. Smart Gym Management Software. All rights reserved.
       </footer>
     </main>
   );

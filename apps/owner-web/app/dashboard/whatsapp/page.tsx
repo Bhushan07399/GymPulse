@@ -303,7 +303,7 @@ export default function WhatsAppAutomationPage() {
             </span>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">WhatsApp Communication & Automation Engine</h1>
             <p className="text-xs sm:text-sm text-slate-300 max-w-xl font-medium">
-              Event-driven WhatsApp receipts, welcome onboarding, FitBhuz member app invites, class schedules, and targeted management notices.
+              Event-driven WhatsApp receipts, welcome onboarding, obo member app invites, class schedules, and targeted management notices.
             </p>
           </div>
 
@@ -435,7 +435,7 @@ export default function WhatsAppAutomationPage() {
           { id: "templates", label: "Message Templates", icon: FileText },
           { id: "broadcast", label: "Manual Broadcast Notice", icon: Megaphone },
           { id: "bmi", label: "BMI Appointments", icon: Heart },
-          { id: "branding", label: "Gym Branding & FitBhuz", icon: Globe },
+          { id: "branding", label: "Gym Branding & Member App (obo)", icon: Globe },
           { id: "logs", label: "Delivery Logs", icon: Clock },
         ].map((tab) => (
           <button
@@ -467,7 +467,7 @@ export default function WhatsAppAutomationPage() {
                 { event: "MEMBER_CREATED", title: "Member Joined (Welcome + Branding)", desc: "Triggers ONE consolidated welcome message containing Gym address, contact, Instagram, T&C, and management details." },
                 { event: "MEMBERSHIP_CREATED", title: "Membership Plan Assigned", desc: "Triggers membership plan details, duration, start/expiry dates, and member ID." },
                 { event: "PAYMENT_RECEIPT", title: "Payment Receipt", desc: "Generates complete receipt (Total, Paid, Remaining Dues, Method, Receipt #). Receipt-first communication." },
-                { event: "FITBHUZ_INTRO", title: "FitBhuz Member App Invite", desc: "Triggers ONCE after member's first payment. Provides Play Store, iOS links & Member ID login steps." },
+                { event: "FITBHUZ_INTRO", title: "obo Member App Invite", desc: "Triggers ONCE after member's first payment. Provides Play Store, iOS links & Member ID login steps." },
                 { event: "CLASS_ASSIGNED", title: "Class Subscription & Schedule", desc: "Triggers ONLY to assigned member with exact class category, instructor, and selected schedule days." },
                 { event: "CLASS_REMINDER", title: "Targeted Class Reminder", desc: "Reminds ONLY members booked or assigned for upcoming class sessions." },
                 { event: "CLASS_SCHEDULE_CHANGED", title: "Class Schedule Updated", desc: "Notifies ONLY affected members when management updates a class timetable." },
@@ -777,7 +777,7 @@ export default function WhatsAppAutomationPage() {
         </section>
       )}
 
-      {/* TAB 5: GYM BRANDING & FITBHUZ */}
+      {/* TAB 5: GYM BRANDING & MEMBER APP (obo) */}
       {activeTab === "branding" && (
         <section className="space-y-6">
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4 max-w-3xl">
@@ -806,14 +806,14 @@ export default function WhatsAppAutomationPage() {
                     value={brandingForm.instagram_url || ""}
                     onChange={(e) => setBrandingForm({ ...brandingForm, instagram_url: e.target.value })}
                     className="mt-1 w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-900"
-                    placeholder="e.g. @gympulse_official"
+                    placeholder="e.g. @ironpulse_official"
                   />
                 </label>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block text-xs font-bold text-slate-700">
-                  FitBhuz Android PlayStore Link
+                  obo Android PlayStore Link
                   <input
                     type="text"
                     value={brandingForm.fitbhuz_playstore_url || ""}
@@ -823,7 +823,7 @@ export default function WhatsAppAutomationPage() {
                 </label>
 
                 <label className="block text-xs font-bold text-slate-700">
-                  FitBhuz iOS App Store Link
+                  obo iOS App Store Link
                   <input
                     type="text"
                     value={brandingForm.fitbhuz_ios_url || ""}

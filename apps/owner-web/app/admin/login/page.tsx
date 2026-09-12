@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, ShieldAlert, Sparkles } from "lucide-react";
 import { loginAdmin } from "@/src/services/admin.service";
@@ -37,17 +38,24 @@ export default function AdminLoginPage() {
       <div className="relative w-full max-w-md">
         {/* Brand Card Header */}
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 font-black text-white text-3xl shadow-xl shadow-emerald-500/20 ring-1 ring-emerald-400/30">
-            O
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 border border-slate-800 shadow-xl">
+            <Image
+              src="/assets/branding/symbol/symbol-dark.png"
+              alt="obo"
+              width={48}
+              height={48}
+              className="size-12 object-contain"
+              priority
+            />
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white">
-            OBO Control Center
+            obo Control Center
           </h1>
           <p className="mt-1 text-xs font-semibold uppercase tracking-widest text-emerald-400">
             Internal Super Admin Authentication
           </p>
           <p className="mt-2 text-xs text-slate-400">
-            Smart Gym Management Platform &bull; Company Administration
+            Smart Gym Management Software &bull; Company Administration
           </p>
         </div>
 
@@ -137,7 +145,7 @@ export default function AdminLoginPage() {
         <div className="mt-8 text-center text-[11px] text-slate-500 leading-relaxed">
           <p className="font-semibold text-slate-400">RESTRICTED INTERNAL AREA</p>
           <p className="mt-1">
-            This console is strictly for authorized OBO platform operators. All access attempts, IP addresses, and operational actions are immutably logged for security auditing.
+            This console is strictly for authorized obo platform operators. All access attempts, IP addresses, and operational actions are immutably logged for security auditing.
           </p>
         </div>
       </div>

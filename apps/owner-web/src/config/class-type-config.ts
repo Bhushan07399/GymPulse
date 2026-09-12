@@ -116,9 +116,9 @@ export const CLASS_TYPE_CONFIGS: Record<string, ClassTypeConfig> = {
   },
   DEFAULT: {
     type: "Regular",
-    displayName: "GymPulse Fitness Member",
+    displayName: "Gym Member",
     category: "Gym Membership",
-    heroTitle: "Welcome back to GymPulse",
+    heroTitle: "Welcome to Your Gym",
     heroSubtitle: "Track your workouts, attendance, progress, and membership details",
     accentGradient: "from-slate-950 via-slate-900 to-[#0F172A]",
     badgeColor: "bg-blue-50 text-blue-700 border-blue-200",

@@ -60,14 +60,14 @@ Contact: {{gym_contact}}`,
 Hi {{member_name}}, you have pending dues of ₹{{due_amount}} for {{membership_plan}}.
 Please clear your dues at reception or contact {{gym_contact}}.`,
 
-  FITBHUZ_INTRO: `🚀 *Get the FitBhuz Member App*
-FitBhuz is your gym's digital member app for managing your membership, classes, attendance, payments and more.
+  FITBHUZ_INTRO: `🚀 *Get the obo Member App*
+obo is your gym's digital member app for managing your membership, classes, attendance, payments and more.
 
 📲 Android: {{fitbhuz_playstore}}
 📱 iOS: {{fitbhuz_ios}}
 
 🔑 *How to Login:*
-1. Download FitBhuz App
+1. Download obo App
 2. Login using Member ID: *{{member_id}}*
 3. Enjoy your digital gym pass!`,
 
@@ -314,12 +314,12 @@ const sendWelcomeMessage = async (gymId, member) => {
 
     const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.MEMBER_CREATED;
     const messageBody = renderTemplate(templateText, {
-      gym_name: branding.gym_name || 'GymPulse Fitness',
+      gym_name: branding.gym_name || 'Gym',
       member_name: `${member.first_name} ${member.last_name || ''}`.trim(),
       member_id: member.member_id || 'MEMBER',
       gym_address: branding.address || 'Gym Premises',
       gym_contact: branding.whatsapp_number || branding.gym_phone || 'Contact Reception',
-      gym_instagram: branding.instagram_url || '@gympulse',
+      gym_instagram: branding.instagram_url || '@obo.fit',
       terms_and_conditions: branding.terms_and_conditions || 'Standard Gym Rules Apply',
       management_contact: branding.management_contact || 'Gym Management'
     });
@@ -349,7 +349,7 @@ const sendMembershipCreatedWhatsApp = async (gymId, member, plan) => {
 
     const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.MEMBERSHIP_CREATED;
     const messageBody = renderTemplate(templateText, {
-      gym_name: branding.gym_name || 'GymPulse Fitness',
+      gym_name: branding.gym_name || 'Gym',
       member_name: `${member.first_name} ${member.last_name || ''}`.trim(),
       member_id: member.member_id || 'MEMBER',
       membership_plan: plan.plan_name || plan.planName || 'Membership Plan',
@@ -389,7 +389,7 @@ const sendPaymentConfirmation = async (gymId, payment, member, planName = 'Membe
 
     const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.PAYMENT_RECEIPT;
     const messageBody = renderTemplate(templateText, {
-      gym_name: branding.gym_name || 'GymPulse Fitness',
+      gym_name: branding.gym_name || 'Gym',
       receipt_number: payment.receipt_number || payment.receiptNumber || `REC-${Date.now().toString().slice(-6)}`,
       payment_date: payment.payment_date || payment.paymentDate || new Date().toISOString().slice(0, 10),
       member_name: `${member.first_name} ${member.last_name || ''}`.trim(),
@@ -438,7 +438,7 @@ const sendFitBhuzIntroWhatsApp = async (gymId, member) => {
 
     const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.FITBHUZ_INTRO;
     const messageBody = renderTemplate(templateText, {
-      gym_name: branding.gym_name || 'GymPulse Fitness',
+      gym_name: branding.gym_name || 'Gym',
       member_id: member.member_id || 'MEMBER',
       fitbhuz_playstore: branding.fitbhuz_playstore_url || 'https://play.google.com/store/apps/details?id=com.fitbhuz.member',
       fitbhuz_ios: branding.fitbhuz_ios_url || 'https://apps.apple.com/app/fitbhuz/id123456789'
@@ -475,7 +475,7 @@ const sendClassAssignedWhatsApp = async (gymId, member, classObj, classPlan, sch
 
     const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.CLASS_ASSIGNED;
     const messageBody = renderTemplate(templateText, {
-      gym_name: branding.gym_name || 'GymPulse Fitness',
+      gym_name: branding.gym_name || 'Gym',
       member_name: `${member.first_name} ${member.last_name || ''}`.trim(),
       class_name: classObj.name || 'Group Class',
       class_plan: classPlan?.name || 'Class Plan',
@@ -511,7 +511,7 @@ const sendClassReminderWhatsApp = async (gymId, member, classObj, scheduleText =
 
     const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.CLASS_REMINDER;
     const messageBody = renderTemplate(templateText, {
-      gym_name: branding.gym_name || 'GymPulse Fitness',
+      gym_name: branding.gym_name || 'Gym',
       member_name: `${member.first_name} ${member.last_name || ''}`.trim(),
       class_name: classObj.name,
       class_schedule: scheduleText,
@@ -545,7 +545,7 @@ const sendClassScheduleChangedWhatsApp = async (gymId, affectedMembers = [], cla
 
     for (const m of affectedMembers) {
       const messageBody = renderTemplate(templateText, {
-        gym_name: branding.gym_name || 'GymPulse Fitness',
+        gym_name: branding.gym_name || 'Gym',
         member_name: `${m.first_name} ${m.last_name || ''}`.trim(),
         class_name: classObj.name,
         class_schedule: newScheduleText,
@@ -568,7 +568,7 @@ const sendClassScheduleChangedWhatsApp = async (gymId, affectedMembers = [], cla
 };
 
 // 8. Renewal Reminder
-const sendRenewalReminder = async (gymId, member, daysOffset, gymName = 'GymPulse Fitness') => {
+const sendRenewalReminder = async (gymId, member, daysOffset, gymName = 'Gym') => {
   try {
     const branding = await whatsappRepository.getGymBranding(gymId);
     const settingsList = await whatsappRepository.getAutomationSettings(gymId);
@@ -613,7 +613,7 @@ const sendBmiAppointmentWhatsApp = async (gymId, assessment, member) => {
 
     const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.BMI_APPOINTMENT;
     const messageBody = renderTemplate(templateText, {
-      gym_name: branding.gym_name || 'GymPulse Fitness',
+      gym_name: branding.gym_name || 'Gym',
       member_name: `${member.first_name} ${member.last_name || ''}`.trim(),
       bmi_date: assessment.appointment_date,
       bmi_time: assessment.appointment_time || 'Scheduled Time',
@@ -646,10 +646,10 @@ const sendBmiCompletedWhatsApp = async (gymId, assessment, member) => {
 
     const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.BMI_COMPLETED;
     const messageBody = renderTemplate(templateText, {
-      gym_name: branding.gym_name || 'GymPulse Fitness',
+      gym_name: branding.gym_name || 'Gym',
       member_name: `${member.first_name} ${member.last_name || ''}`.trim(),
       bmi_score: assessment.bmi_score || 'Recorded',
-      report_url: assessment.report_url || 'Available in FitBhuz App',
+      report_url: assessment.report_url || 'Available in obo App',
       gym_contact: branding.whatsapp_number || branding.gym_phone || 'Reception'
     });
 
@@ -675,7 +675,7 @@ const sendManualBroadcastWhatsApp = async (gymId, broadcast, recipients = []) =>
 
     for (const member of recipients) {
       const messageBody = renderTemplate(templateText, {
-        gym_name: branding.gym_name || 'GymPulse Fitness',
+        gym_name: branding.gym_name || 'Gym',
         member_name: `${member.first_name} ${member.last_name || ''}`.trim(),
         broadcast_message: broadcast.message_body,
         gym_contact: branding.whatsapp_number || branding.gym_phone || 'Reception'
@@ -712,7 +712,7 @@ const sendAttendanceConfirmation = async (gymId, member, checkInTime = null, gym
 
     const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.ATTENDANCE_CONFIRMATION;
     const messageBody = renderTemplate(templateText, {
-      gym_name: branding.gym_name || gymName || 'GymPulse Fitness',
+      gym_name: branding.gym_name || gymName || 'Gym',
       member_name: `${member.first_name || member.firstName || ''} ${member.last_name || member.lastName || ''}`.trim(),
       check_in_time: timeStr,
       gym_contact: branding.whatsapp_number || branding.gym_phone || 'Reception'
@@ -727,7 +727,7 @@ const sendAttendanceConfirmation = async (gymId, member, checkInTime = null, gym
       automationType: 'ATTENDANCE_CONFIRMATION',
       phoneNumber: member.phone,
       templateName: 'gympulse_attendance_confirmation',
-      parameters: [member.first_name || member.firstName || 'Member', timeStr, branding.gym_name || 'GymPulse Fitness'],
+      parameters: [member.first_name || member.firstName || 'Member', timeStr, branding.gym_name || 'Gym'],
       customText: messageBody,
       idempotencyKey
     });
@@ -748,7 +748,7 @@ const sendClassBookingConfirmation = async (gymId, member, classObj, scheduleTex
 
     const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.CLASS_BOOKING_CONFIRMATION;
     const messageBody = renderTemplate(templateText, {
-      gym_name: branding.gym_name || 'GymPulse Fitness',
+      gym_name: branding.gym_name || 'Gym',
       member_name: `${member.first_name || member.firstName || ''} ${member.last_name || member.lastName || ''}`.trim(),
       class_name: classObj.name || 'Class',
       class_schedule: scheduleText,
@@ -786,7 +786,7 @@ const sendClassAttendanceConfirmation = async (gymId, member, classObj, checkInT
 
     const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.CLASS_ATTENDANCE_CONFIRMATION;
     const messageBody = renderTemplate(templateText, {
-      gym_name: branding.gym_name || 'GymPulse Fitness',
+      gym_name: branding.gym_name || 'Gym',
       member_name: `${member.first_name || member.firstName || ''} ${member.last_name || member.lastName || ''}`.trim(),
       class_name: classObj.name || 'Class',
       check_in_time: timeStr,
@@ -823,7 +823,7 @@ const sendDueReminder = async (gymId, member, dueAmount, planName = 'Membership'
 
     const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.DUE_REMINDER;
     const messageBody = renderTemplate(templateText, {
-      gym_name: branding.gym_name || 'GymPulse Fitness',
+      gym_name: branding.gym_name || 'Gym',
       member_name: `${member.first_name || member.firstName || ''} ${member.last_name || member.lastName || ''}`.trim(),
       due_amount: dueAmount,
       membership_plan: planName,
@@ -836,7 +836,7 @@ const sendDueReminder = async (gymId, member, dueAmount, planName = 'Membership'
       automationType: 'DUE_REMINDER',
       phoneNumber: member.phone,
       templateName: 'gympulse_due_reminder',
-      parameters: [member.first_name || member.firstName || 'Member', `₹${dueAmount}`, branding.gym_name || 'GymPulse Fitness'],
+      parameters: [member.first_name || member.firstName || 'Member', `₹${dueAmount}`, branding.gym_name || 'Gym'],
       customText: messageBody
     });
   } catch (err) {
@@ -851,7 +851,7 @@ const sendImportantNotice = async (gymId, member, title, noticeBody) => {
     const branding = await whatsappRepository.getGymBranding(gymId);
     const templateText = DEFAULT_TEMPLATES.MANUAL_BROADCAST;
     const messageBody = renderTemplate(templateText, {
-      gym_name: branding.gym_name || 'GymPulse Fitness',
+      gym_name: branding.gym_name || 'Gym',
       member_name: `${member.first_name || member.firstName || ''} ${member.last_name || member.lastName || ''}`.trim(),
       broadcast_message: noticeBody,
       gym_contact: branding.whatsapp_number || branding.gym_phone || 'Reception'

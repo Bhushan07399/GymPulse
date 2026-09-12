@@ -22,7 +22,7 @@ export const memberDashboardService = {
         firstName: profile.firstName || profile.first_name || 'Member',
         lastName: profile.lastName || profile.last_name || '',
         phone: profile.phone || '',
-        gymName: profile.gymName || profile.gym_name || d.gymName || 'GymPulse Gym',
+        gymName: profile.gymName || profile.gym_name || d.gymName || 'My Gym',
         gymId: profile.gymId || profile.gym_id || '',
       },
       membership: {

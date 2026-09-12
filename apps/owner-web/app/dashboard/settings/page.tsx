@@ -313,7 +313,7 @@ export default function GymSettingsPage() {
                   setIsDirty(true);
                 }}
                 className={inputStyle}
-                placeholder="e.g. GymPulse Fitness Club"
+                placeholder="e.g. IronPulse Fitness Club"
               />
             </div>
 
@@ -355,7 +355,7 @@ export default function GymSettingsPage() {
                   setIsDirty(true);
                 }}
                 className={inputStyle}
-                placeholder="e.g. info@gympulse.in"
+                placeholder="e.g. info@yourgym.in"
               />
             </div>
 
@@ -624,7 +624,7 @@ export default function GymSettingsPage() {
             {/* FEATURE COMPARISON MATRIX BRIEF */}
             <div className="border-t border-slate-100 pt-5 space-y-3">
               <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider text-slate-400">
-                GymPulse Customer Subscription Plans
+                obo Customer Subscription Plans
               </h3>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-xl border border-slate-200 p-4 bg-slate-50/50 space-y-1">
@@ -1036,7 +1036,7 @@ export default function GymSettingsPage() {
                   setIsDirty(true);
                 }}
                 className={inputStyle}
-                placeholder="e.g. GymPulse Fitness Services Private Limited"
+                placeholder="e.g. IronPulse Fitness Services Private Limited"
               />
             </div>
 

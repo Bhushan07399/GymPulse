@@ -81,7 +81,7 @@ export const MemberDashboardScreen = ({ navigation }: MemberDashboardScreenProps
       }}
     >
       <Header
-        title={member?.gymName || 'GymPulse Fitness'}
+        title={member?.gymName || 'My Gym'}
         subtitle={`Member Pass #${member?.memberId || '...'}`}
         rightElement={
           <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.7}>

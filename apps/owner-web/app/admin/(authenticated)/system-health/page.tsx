@@ -114,7 +114,7 @@ export default function AdminSystemHealthPage() {
 
         <div className="mt-4 border-t border-slate-800/80 pt-3 text-xs text-slate-400 leading-relaxed">
           <span className="font-semibold text-slate-300">Policy: Truthful Status Reporting &bull; </span>
-          OBO does not simulate 100% green cards. Live ping latency, database query rounds, and WhatsApp provider availability are verified against real endpoints.
+          obo does not simulate 100% green cards. Live ping latency, database query rounds, and WhatsApp provider availability are verified against real endpoints.
         </div>
       </div>
 

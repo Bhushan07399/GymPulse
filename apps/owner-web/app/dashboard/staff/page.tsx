@@ -378,7 +378,7 @@ function AddStaffModal({ onClose }: { onClose: () => void }) {
             <label className="font-semibold text-slate-700 block mb-1">Email Address</label>
             <input
               type="email"
-              placeholder="sarah@gympulse.com"
+              placeholder="sarah@yourgym.com"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-900"

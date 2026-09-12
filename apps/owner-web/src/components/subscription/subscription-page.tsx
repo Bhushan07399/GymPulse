@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   Check,
@@ -218,8 +219,14 @@ export function SubscriptionPage() {
         {/* Header Bar */}
         <header className="flex items-center justify-between py-2 border-b border-slate-200/80 pb-4">
           <Link href="/dashboard" className="flex items-center gap-2.5">
-            <span className="grid size-8 place-items-center rounded-xl bg-[#0F172A] text-[10px] font-black text-white shadow-sm">GP</span>
-            <span className="text-base font-black tracking-tight text-slate-900">GymPulse</span>
+            <Image
+              src="/assets/branding/symbol/symbol-dark.png"
+              alt="obo"
+              width={32}
+              height={32}
+              className="size-8 rounded-xl object-contain"
+            />
+            <span className="text-base font-black tracking-tight text-slate-900">obo</span>
           </Link>
           <div className="flex items-center gap-3">
             <Link
@@ -626,7 +633,7 @@ export function SubscriptionPage() {
         <FaqAccordion />
 
         <footer className="py-6 text-center text-[11px] text-slate-400 font-medium">
-          GymPulse SaaS Platform © 2026 · Made in India 🇮🇳 · Production Entitlement Architecture
+          obo · Smart Gym Management Software © {new Date().getFullYear()} · Made in India 🇮🇳
         </footer>
       </div>
 

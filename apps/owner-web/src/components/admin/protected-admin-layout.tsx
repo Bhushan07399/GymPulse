@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -143,18 +144,22 @@ export function ProtectedAdminLayout({ children }: { children: ReactNode }) {
         {/* Brand Header */}
         <div className="border-b border-slate-800/80 px-6 py-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 font-black text-white shadow-lg shadow-emerald-500/20 text-lg">
-              O
-            </div>
+            <Image
+              src="/assets/branding/symbol/symbol-dark.png"
+              alt="obo"
+              width={36}
+              height={36}
+              className="size-9 rounded-xl object-contain"
+            />
             <div>
-              <div className="text-lg font-extrabold tracking-tight text-white">OBO</div>
+              <div className="text-lg font-extrabold tracking-tight text-white">obo</div>
               <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
                 Control Center
               </div>
             </div>
           </div>
           <div className="mt-2 text-[11px] text-slate-400 font-medium">
-            Smart Gym Management Platform
+            Smart Gym Management Software
           </div>
         </div>
 
@@ -277,10 +282,14 @@ export function ProtectedAdminLayout({ children }: { children: ReactNode }) {
           <div className="relative flex w-72 flex-col bg-slate-900 border-r border-slate-800 p-4">
             <div className="flex items-center justify-between pb-4 border-b border-slate-800">
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 font-bold text-white">
-                  O
-                </div>
-                <div className="text-sm font-extrabold text-white">OBO Admin</div>
+                <Image
+                  src="/assets/branding/symbol/symbol-dark.png"
+                  alt="obo"
+                  width={28}
+                  height={28}
+                  className="size-7 rounded-lg object-contain"
+                />
+                <div className="text-sm font-extrabold text-white">obo Admin</div>
               </div>
               <button
                 onClick={() => setMobileMenuOpen(false)}

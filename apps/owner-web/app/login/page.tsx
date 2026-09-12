@@ -27,16 +27,18 @@ const loginSchema = z.object({
 
 const pageTransition = { duration: 0.55, ease: [0.22, 1, 0.36, 1] } as const;
 
-function GymPulseMark() {
+function OboMark() {
   return (
     <div className="flex items-center justify-between w-full">
-      <div className="flex items-center gap-3" aria-label="GymPulse">
-        <span className="grid size-11 place-items-center rounded-2xl bg-[#0F172A] shadow-[0_10px_26px_rgba(15,23,42,0.2)]">
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="size-5 fill-none stroke-white stroke-[2.4]">
-            <path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" strokeLinecap="round" />
-          </svg>
-        </span>
-        <span className="text-xl font-bold tracking-[-0.05em] text-[#0F172A]">GymPulse</span>
+      <div className="flex items-center gap-3" aria-label="obo">
+        <Image
+          src="/assets/branding/horizontal/logo-horizontal.png"
+          alt="obo — Smart Gym Management Software"
+          width={180}
+          height={40}
+          className="h-9 w-auto object-contain"
+          priority
+        />
       </div>
 
       <Link href="/" className="text-xs font-bold text-[#64748B] hover:text-[#0F172A]">
@@ -87,7 +89,7 @@ export default function LoginPage() {
       <section className="relative flex min-h-screen px-5 py-6 sm:px-8 sm:py-8 lg:px-12 xl:px-[clamp(3rem,7vw,8rem)]">
         <div className="absolute inset-x-0 top-0 h-56 bg-[radial-gradient(ellipse_at_top,rgba(203,213,225,0.55),transparent_68%)]" />
         <div className="relative mx-auto flex w-full max-w-[28rem] flex-1 flex-col">
-          <GymPulseMark />
+          <OboMark />
 
           <motion.div
             initial={{ opacity: 0, y: 22 }}
@@ -96,7 +98,7 @@ export default function LoginPage() {
             className="my-auto py-12 sm:py-16 lg:py-12"
           >
             <div className="mb-9">
-              <p className="mb-3 text-xs font-bold tracking-[0.18em] text-[#64748B]">GYM MANAGEMENT PLATFORM</p>
+              <p className="mb-3 text-xs font-bold tracking-[0.18em] text-[#64748B]">SMART GYM MANAGEMENT SOFTWARE</p>
               <h1 className="max-w-sm text-4xl font-semibold leading-[1.05] tracking-[-0.055em] text-[#0F172A] sm:text-5xl">Welcome back to your momentum.</h1>
               <p className="mt-4 max-w-md text-[15px] leading-6 text-[#64748B]">Sign in to keep your members, operations, and growth moving in one direction.</p>
             </div>
@@ -120,7 +122,7 @@ export default function LoginPage() {
               <motion.div whileFocus={{ y: -1 }} transition={{ duration: 0.18 }}>
                 <div className="mb-2 flex items-center justify-between gap-4">
                   <label className="text-sm font-semibold text-[#334155]" htmlFor="password">Password</label>
-                  <a href="mailto:support@gympulse.com?subject=Password%20reset" className="text-sm font-semibold text-[#475569] transition hover:text-[#0F172A] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#334155]">Forgot password?</a>
+                  <a href="mailto:support@obo.fit?subject=Password%20reset" className="text-sm font-semibold text-[#475569] transition hover:text-[#0F172A] focus-visible:rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#334155]">Forgot password?</a>
                 </div>
                 <div className="relative">
                   <input
@@ -165,7 +167,7 @@ export default function LoginPage() {
             </form>
           </motion.div>
 
-          <p className="text-xs text-[#94A3B8]">© {new Date().getFullYear()} GymPulse. Built for stronger businesses.</p>
+          <p className="text-xs text-[#94A3B8]">© {new Date().getFullYear()} obo. Smart Gym Management Software.</p>
         </div>
       </section>
 
@@ -191,7 +193,7 @@ export default function LoginPage() {
         >
           <div className="max-w-xl border-l-2 border-amber-400 pl-6">
             <span className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-amber-400/10 px-3 py-1 text-xs font-bold text-amber-300 border border-amber-400/30">
-              GYMPULSE MANAGEMENT PLATFORM
+              SMART GYM MANAGEMENT SOFTWARE
             </span>
             <p className="mt-3 text-3xl font-bold leading-[1.15] tracking-[-0.04em] text-white xl:text-4xl">
               Elevate every member experience. Stay ahead of every operation.

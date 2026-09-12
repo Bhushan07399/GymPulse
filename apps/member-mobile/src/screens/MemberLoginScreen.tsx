@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import '../lib/i18n';
 import { Colors } from '../theme/colors';
@@ -17,7 +17,7 @@ export const MemberLoginScreen = () => {
 
   const handleLogin = async () => {
     if (!identifier.trim() || !password.trim()) {
-      setError(t('auth.required', 'Please enter your Member ID (e.g. GP0002) and Password.'));
+      setError(t('auth.required', 'Please enter your Member ID (e.g. MEM-1001) and Password.'));
       return;
     }
 
@@ -41,10 +41,15 @@ export const MemberLoginScreen = () => {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
         <View style={styles.headerBox}>
+          <Image
+            source={require('../../assets/symbol-dark.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
           <View style={styles.badgeBox}>
             <Text style={styles.badgeText}>MEMBER PORTAL</Text>
           </View>
-          <Text style={styles.appTitle}>GymPulse</Text>
+          <Text style={styles.appTitle}>obo Member</Text>
           <Text style={styles.subtitle}>{t('auth.enterDetails', 'Welcome back! Enter your details to view your membership pass & classes.')}</Text>
         </View>
 
@@ -57,7 +62,7 @@ export const MemberLoginScreen = () => {
 
           <Input
             label={t('members.memberID', 'Member ID / Phone Number')}
-            placeholder="e.g. GP0002 or 9876543210"
+            placeholder="e.g. MEM-1001 or 9876543210"
             value={identifier}
             onChangeText={(v) => {
               setIdentifier(v);
@@ -84,6 +89,8 @@ export const MemberLoginScreen = () => {
             style={styles.loginBtn}
           />
         </View>
+
+        <Text style={styles.footerText}>Powered by obo • Smart Gym Management Software</Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -172,5 +179,16 @@ const styles = StyleSheet.create({
   },
   loginBtn: {
     marginTop: 8,
+  },
+  logoImage: {
+    width: 64,
+    height: 64,
+    marginBottom: 12,
+  },
+  footerText: {
+    textAlign: 'center',
+    color: Colors.slate500,
+    fontSize: 12,
+    marginTop: 24,
   },
 });

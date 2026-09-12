@@ -446,7 +446,7 @@ export function renderReportDocumentHtml(options: ReportDocumentOptions): string
 
     <div class="doc-footer">
       <div>${footerNote || `Official business report issued by ${gymName}.`}</div>
-      <div class="doc-attribution">Generated via GymPulse</div>
+      <div class="doc-attribution">Generated via obo</div>
     </div>
   </div>
   ${options.autoPrint !== false ? `<script>

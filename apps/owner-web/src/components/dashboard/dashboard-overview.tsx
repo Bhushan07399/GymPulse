@@ -171,7 +171,7 @@ export function DashboardOverview() {
         {/* Mobile Header Greeting */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">GYMPULSE MANAGEMENT</p>
+            <p className="text-[10px] font-bold tracking-wider text-slate-500">obo Management</p>
             <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Your Gym Snapshot</h1>
             <p className="text-xs text-slate-500 font-medium">{todayStr}</p>
           </div>

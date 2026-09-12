@@ -92,7 +92,7 @@ export const ReceptionScannerScreen = ({ navigation }: ReceptionScannerScreenPro
           <Text style={styles.permissionIcon}>📷</Text>
           <Text style={styles.permissionTitle}>Camera Access Required</Text>
           <Text style={styles.permissionDesc}>
-            GymPulse needs camera access to scan member digital QR passes at the reception desk.
+            obo requires camera access to scan member digital QR passes at the reception desk.
           </Text>
           <Button title="Grant Camera Permission" onPress={requestPermission} style={styles.permBtn} />
         </View>

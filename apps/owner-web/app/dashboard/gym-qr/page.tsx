@@ -88,7 +88,7 @@ export default function ManagementGymQrPage() {
 
       ctx.fillStyle = "#64748B";
       ctx.font = "14px Inter, sans-serif";
-      ctx.fillText("1. Open GymPulse Member Mobile App", 400, 820);
+      ctx.fillText("1. Open obo Member Mobile App", 400, 820);
       ctx.fillText("2. Tap QR Camera Scanner at bottom navigation", 400, 850);
       ctx.fillText("3. Point camera at this QR Code to Check In or Check Out", 400, 880);
 
@@ -172,7 +172,7 @@ export default function ManagementGymQrPage() {
               Official Member Check-In & Check-Out QR
             </div>
             <ol className="text-[11px] text-slate-600 font-medium space-y-1 list-decimal list-inside">
-              <li>Open your <strong>GymPulse Member App</strong> on mobile.</li>
+              <li>Open your <strong>obo Member App</strong> on mobile.</li>
               <li>Tap <strong>QR Scanner</strong> icon on the bottom navigation bar.</li>
               <li>Scan this QR Code at reception for instant entrance log.</li>
             </ol>

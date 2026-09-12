@@ -57,7 +57,7 @@ const getGymQr = async (request, response) => {
     success: true,
     data: {
       gymId,
-      gymName: gym?.name || 'GymPulse Fitness',
+      gymName: gym?.name || 'My Gym',
       gymQrString: qrString,
       subscriptionPlan: gym?.subscription_plan || 'Basic',
       instructions: 'Display this Gym QR Code at reception for member mobile check-in scanning.'

@@ -83,7 +83,7 @@ export function GymSwitcher() {
         </div>
         <div className="flex flex-col min-w-0 pr-1">
           <span className="text-xs font-black tracking-tight text-slate-900 truncate">
-            {currentGym?.name || 'GymPulse Fitness'}
+            {currentGym?.name || 'My Gym'}
           </span>
           <span className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
             <MapPin className="h-2.5 w-2.5 text-blue-600 inline" />

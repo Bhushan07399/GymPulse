@@ -1,20 +1,30 @@
 {
   "expo": {
-    "name": "GymPulse Owner",
-    "slug": "gympulse-owner-mobile",
+    "name": "obo Owner",
+    "slug": "obo-owner-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.gympulse.owner",
       "infoPlist": {
-        "NSCameraUsageDescription": "GymPulse requires camera access to scan member QR passes at reception."
+        "NSCameraUsageDescription": "obo requires camera access to scan member QR passes at reception."
       }
     },
     "android": {
       "package": "com.gympulse.owner",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F172A"
+      },
       "permissions": [
         "CAMERA"
       ]
@@ -23,7 +33,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "GymPulse requires camera access to scan member QR passes at reception."
+          "cameraPermission": "obo requires camera access to scan member QR passes at reception."
         }
       ]
     ]

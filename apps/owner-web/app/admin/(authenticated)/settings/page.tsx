@@ -233,7 +233,7 @@ export default function AdminSettingsPage() {
                 Super Admin Access Governance
               </h2>
               <p className="text-xs text-slate-400">
-                Operators granted access to the OBO internal control center.
+                Operators granted access to the obo internal control center.
               </p>
             </div>
           </div>

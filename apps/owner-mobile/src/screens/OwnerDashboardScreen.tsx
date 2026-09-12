@@ -33,7 +33,7 @@ export const OwnerDashboardScreen = ({ navigation }: OwnerDashboardScreenProps) 
       onRefresh={refetch}
     >
       <Header
-        title={gym?.name || 'GymPulse Fitness'}
+        title={gym?.name || 'My Gym'}
         subtitle={`Logged in as ${user?.firstName || 'Owner'} (${user?.role || 'owner'})`}
         rightElement={
           <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.7}>

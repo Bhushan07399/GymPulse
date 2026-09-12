@@ -959,7 +959,7 @@ export default function ReportsPage() {
           Official business report issued by <strong className="text-slate-600">{gymName}</strong>. Real-time data.
         </p>
         <p className="text-[11px] text-slate-400">
-          Powered by <strong className="text-slate-600 font-semibold">GymPulse</strong>
+          Powered by <strong className="text-slate-600 font-semibold">obo</strong>
         </p>
       </footer>
     </div>
