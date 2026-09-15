@@ -79,7 +79,6 @@ export default function OboEntryPage() {
               <span>Create Gym Account</span>
               <ArrowRight className="h-4 w-4 text-slate-400" />
             </Link>
-            <h2>test</h2>
           </div>
         </div>
 
