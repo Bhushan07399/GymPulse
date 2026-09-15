@@ -88,6 +88,37 @@ function maskPhoneNumber(phone?: string | null): string {
   return `${prefix}*****${suffix}`;
 }
 
+const TEMPLATE_DISPLAY_NAMES: Record<string, string> = {
+  FITBHUZ_INTRO: "obo Member App Invite",
+  gympulse_fitbhuz_intro: "obo Member App Invite",
+  MEMBER_CREATED: "Member Joined (Welcome + Branding)",
+  MEMBERSHIP_CREATED: "Membership Plan Assigned",
+  PAYMENT_RECEIPT: "Payment Receipt",
+  CLASS_ASSIGNED: "Class Subscription & Schedule",
+  CLASS_REMINDER: "Targeted Class Reminder",
+  CLASS_SCHEDULE_CHANGED: "Class Schedule Updated",
+  BMI_APPOINTMENT: "BMI Assessment Appointment",
+  BMI_COMPLETED: "BMI Assessment Completed",
+  BIRTHDAY_WISHES: "Birthday Wishes",
+  RENEWAL_7D: "7 Days Expiry Reminder",
+  RENEWAL_3D: "3 Days Left on Membership",
+  RENEWAL_1D: "1 Day Left on Membership",
+  MEMBERSHIP_EXPIRED: "Membership Expired Notice",
+  DUE_REMINDER: "Payment Due Reminder",
+  ATTENDANCE_CONFIRMATION: "Attendance Marked Confirmation",
+  CLASS_BOOKING_CONFIRMATION: "Class Booking Confirmation",
+  CLASS_ATTENDANCE_CONFIRMATION: "Class Attendance Confirmation",
+  MANUAL_BROADCAST: "Broadcast Announcement",
+  TEST_MESSAGE: "Test Verification",
+};
+
+function cleanTemplateBody(body?: string | null): string {
+  if (!body) return "";
+  return body
+    .replace(/\{\{fitbhuz_playstore\}\}/g, "{{android_app_link}}")
+    .replace(/\{\{fitbhuz_ios\}\}/g, "{{ios_app_link}}");
+}
+
 export default function WhatsAppAutomationPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"automations" | "templates" | "broadcast" | "bmi" | "branding" | "logs">("automations");
@@ -485,7 +516,7 @@ export default function WhatsAppAutomationPage() {
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="rounded-full bg-blue-50 px-2.5 py-0.5 font-extrabold text-[10px] text-blue-700 border border-blue-200">
-                          {item.event}
+                          {TEMPLATE_DISPLAY_NAMES[item.event] || item.event}
                         </span>
                         <button
                           onClick={() => saveTemplateMutation.mutate({ eventType: item.event, isEnabled: !isEnabled, templateBody: t?.template_body || t?.default_body || "" })}
@@ -502,8 +533,15 @@ export default function WhatsAppAutomationPage() {
 
                     <button
                       onClick={() => {
-                        setSelectedTemplate(t || { event_type: item.event, is_enabled: true, template_body: item.event, default_body: item.event, is_customized: false });
-                        setEditingTemplateBody(t?.template_body || "");
+                        const targetTemplate: AutomationTemplate = t || {
+                          event_type: item.event,
+                          is_enabled: true,
+                          template_body: "",
+                          default_body: "",
+                          is_customized: false,
+                        };
+                        setSelectedTemplate(targetTemplate);
+                        setEditingTemplateBody(cleanTemplateBody(targetTemplate.template_body || targetTemplate.default_body || ""));
                       }}
                       className="inline-flex items-center gap-1.5 text-xs font-extrabold text-blue-600 hover:text-blue-800"
                     >
@@ -523,18 +561,18 @@ export default function WhatsAppAutomationPage() {
           <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
             <h2 className="text-lg font-extrabold text-slate-900">Custom Template Editor</h2>
             <p className="text-xs text-slate-500 font-medium">
-              Customize dynamic wording. Supported variables: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{member_name}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{member_id}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{gym_name}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{gym_contact}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{total_amount}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{paid_amount}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{remaining_amount}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{class_name}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{class_schedule}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{bmi_date}}"}</code>.
+              Customize dynamic wording. Supported variables: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{member_name}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{member_id}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{gym_name}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{gym_contact}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{android_app_link}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{ios_app_link}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{total_amount}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{paid_amount}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{remaining_amount}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{class_name}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{class_schedule}}"}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-slate-700">{"{{bmi_date}}"}</code>.
             </p>
 
             <div className="grid gap-4 md:grid-cols-2">
               {templates.map((tpl) => (
                 <div key={tpl.event_type} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                    <span className="font-extrabold text-xs text-slate-900 uppercase">{tpl.event_type}</span>
+                    <span className="font-extrabold text-xs text-slate-900">{TEMPLATE_DISPLAY_NAMES[tpl.event_type] || tpl.event_type}</span>
                     <button
                       onClick={() => {
                         setSelectedTemplate(tpl);
-                        setEditingTemplateBody(tpl.template_body);
+                        setEditingTemplateBody(cleanTemplateBody(tpl.template_body));
                       }}
                       className="rounded-lg bg-slate-900 px-3 py-1 text-xs font-bold text-white hover:bg-slate-800"
                     >
@@ -542,7 +580,7 @@ export default function WhatsAppAutomationPage() {
                     </button>
                   </div>
                   <pre className="text-xs text-slate-700 font-mono whitespace-pre-wrap bg-white p-3 rounded-xl border border-slate-200 max-h-36 overflow-y-auto">
-                    {tpl.template_body}
+                    {cleanTemplateBody(tpl.template_body)}
                   </pre>
                 </div>
               ))}
@@ -895,7 +933,7 @@ export default function WhatsAppAutomationPage() {
                   logs.map((log) => (
                     <tr key={log.id} className="hover:bg-slate-50">
                       <td className="px-5 py-3 text-slate-500">{new Date(log.sent_at).toLocaleString()}</td>
-                      <td className="px-5 py-3 font-extrabold text-slate-900">{log.automation_type}</td>
+                      <td className="px-5 py-3 font-extrabold text-slate-900">{TEMPLATE_DISPLAY_NAMES[log.automation_type] || log.automation_type}</td>
                       <td className="px-5 py-3 font-semibold">{log.first_name ? `${log.first_name} ${log.last_name || ''}` : "Guest / Owner"}</td>
                       <td className="px-5 py-3 font-mono text-slate-700" title={log.phone_number}>
                         {maskPhoneNumber(log.phone_number)}
@@ -1097,6 +1135,131 @@ export default function WhatsAppAutomationPage() {
                 >
                   Save & Send WhatsApp Report
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CUSTOMIZE TEMPLATE MODAL */}
+      <AnimatePresence>
+        {selectedTemplate && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+            <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900">
+                    {TEMPLATE_DISPLAY_NAMES[selectedTemplate.event_type] || selectedTemplate.event_type}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Customize message copy. Insert dynamic variables by clicking below.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedTemplate(null)}
+                  className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Variable Guidance List */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700">
+                  Available Dynamic Variables
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedTemplate.event_type === "FITBHUZ_INTRO" ? (
+                    <>
+                      {[
+                        { label: "Android App Link", tag: "{{android_app_link}}" },
+                        { label: "iOS App Link", tag: "{{ios_app_link}}" },
+                        { label: "Member ID", tag: "{{member_id}}" },
+                        { label: "Gym Name", tag: "{{gym_name}}" },
+                      ].map((v) => (
+                        <button
+                          key={v.tag}
+                          type="button"
+                          onClick={() => setEditingTemplateBody((prev) => `${prev} ${v.tag}`)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-100"
+                        >
+                          <span className="font-semibold">{v.label}:</span>
+                          <code className="font-mono text-blue-600">{v.tag}</code>
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    [
+                      { label: "Member Name", tag: "{{member_name}}" },
+                      { label: "Member ID", tag: "{{member_id}}" },
+                      { label: "Gym Name", tag: "{{gym_name}}" },
+                      { label: "Gym Contact", tag: "{{gym_contact}}" },
+                      { label: "Total Amount", tag: "{{total_amount}}" },
+                      { label: "Paid Amount", tag: "{{paid_amount}}" },
+                      { label: "Remaining Dues", tag: "{{remaining_amount}}" },
+                      { label: "Class Name", tag: "{{class_name}}" },
+                      { label: "Schedule", tag: "{{class_schedule}}" },
+                    ].map((v) => (
+                      <button
+                        key={v.tag}
+                        type="button"
+                        onClick={() => setEditingTemplateBody((prev) => `${prev} ${v.tag}`)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-100"
+                      >
+                        <span className="font-semibold">{v.label}:</span>
+                        <code className="font-mono text-blue-600">{v.tag}</code>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Template Editor Textarea */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Message Content Template *
+                </label>
+                <textarea
+                  rows={8}
+                  value={editingTemplateBody}
+                  onChange={(e) => setEditingTemplateBody(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 p-3 font-mono text-xs text-slate-900 focus:border-blue-500 focus:outline-none"
+                  placeholder="Enter message template..."
+                />
+              </div>
+
+              <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditingTemplateBody(cleanTemplateBody(selectedTemplate.default_body))}
+                  className="text-xs font-bold text-slate-500 hover:text-slate-800"
+                >
+                  Reset to Default
+                </button>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTemplate(null)}
+                    className="rounded-xl px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={saveTemplateMutation.isPending || !editingTemplateBody.trim()}
+                    onClick={() => {
+                      saveTemplateMutation.mutate({
+                        eventType: selectedTemplate.event_type,
+                        isEnabled: selectedTemplate.is_enabled,
+                        templateBody: editingTemplateBody.trim(),
+                      });
+                    }}
+                    className="rounded-xl bg-slate-900 px-5 py-2 text-xs font-extrabold text-white hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    {saveTemplateMutation.isPending ? "Saving..." : "Save Template"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

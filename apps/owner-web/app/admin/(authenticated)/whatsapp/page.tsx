@@ -20,6 +20,30 @@ import {
   type AdminWhatsAppLog,
 } from "@/src/services/admin.service";
 
+const TEMPLATE_DISPLAY_NAMES: Record<string, string> = {
+  FITBHUZ_INTRO: "obo Member App Invite",
+  gympulse_fitbhuz_intro: "obo Member App Invite",
+  MEMBER_CREATED: "Member Joined (Welcome + Branding)",
+  MEMBERSHIP_CREATED: "Membership Plan Assigned",
+  PAYMENT_RECEIPT: "Payment Receipt",
+  CLASS_ASSIGNED: "Class Subscription & Schedule",
+  CLASS_REMINDER: "Targeted Class Reminder",
+  CLASS_SCHEDULE_CHANGED: "Class Schedule Updated",
+  BMI_APPOINTMENT: "BMI Assessment Appointment",
+  BMI_COMPLETED: "BMI Assessment Completed",
+  BIRTHDAY_WISHES: "Birthday Wishes",
+  RENEWAL_7D: "7 Days Expiry Reminder",
+  RENEWAL_3D: "3 Days Left on Membership",
+  RENEWAL_1D: "1 Day Left on Membership",
+  MEMBERSHIP_EXPIRED: "Membership Expired Notice",
+  DUE_REMINDER: "Payment Due Reminder",
+  ATTENDANCE_CONFIRMATION: "Attendance Marked Confirmation",
+  CLASS_BOOKING_CONFIRMATION: "Class Booking Confirmation",
+  CLASS_ATTENDANCE_CONFIRMATION: "Class Attendance Confirmation",
+  MANUAL_BROADCAST: "Broadcast Announcement",
+  TEST_MESSAGE: "Test Verification",
+};
+
 export default function AdminWhatsappOperationsPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [searchTerm, setSearchTerm] = useState("");
@@ -252,7 +276,7 @@ export default function AdminWhatsappOperationsPage() {
                     </td>
                     <td className="px-4 py-3.5">
                       <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-300">
-                        {log.automationType || log.templateName || "MESSAGE"}
+                        {TEMPLATE_DISPLAY_NAMES[log.automationType] || TEMPLATE_DISPLAY_NAMES[log.templateName] || log.automationType || log.templateName || "MESSAGE"}
                       </span>
                     </td>
                     <td className="px-4 py-3.5">

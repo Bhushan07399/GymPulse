@@ -63,8 +63,8 @@ Please clear your dues at reception or contact {{gym_contact}}.`,
   FITBHUZ_INTRO: `🚀 *Get the obo Member App*
 obo is your gym's digital member app for managing your membership, classes, attendance, payments and more.
 
-📲 Android: {{fitbhuz_playstore}}
-📱 iOS: {{fitbhuz_ios}}
+📲 Android: {{android_app_link}}
+📱 iOS: {{ios_app_link}}
 
 🔑 *How to Login:*
 1. Download obo App
@@ -147,8 +147,15 @@ Contact: {{gym_contact}}`
 
 const renderTemplate = (template, vars = {}) => {
   if (!template) return '';
+  const resolvedVars = {
+    ...vars,
+    android_app_link: vars.android_app_link || vars.fitbhuz_playstore || '',
+    ios_app_link: vars.ios_app_link || vars.fitbhuz_ios || '',
+    fitbhuz_playstore: vars.fitbhuz_playstore || vars.android_app_link || '',
+    fitbhuz_ios: vars.fitbhuz_ios || vars.ios_app_link || ''
+  };
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
-    return vars[key] !== undefined && vars[key] !== null ? String(vars[key]) : '';
+    return resolvedVars[key] !== undefined && resolvedVars[key] !== null ? String(resolvedVars[key]) : '';
   });
 };
 
@@ -437,11 +444,15 @@ const sendFitBhuzIntroWhatsApp = async (gymId, member) => {
     if (customSetting && !customSetting.is_enabled) return;
 
     const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.FITBHUZ_INTRO;
+    const androidUrl = branding.fitbhuz_playstore_url || 'https://play.google.com/store/apps/details?id=com.fitbhuz.member';
+    const iosUrl = branding.fitbhuz_ios_url || 'https://apps.apple.com/app/fitbhuz/id123456789';
     const messageBody = renderTemplate(templateText, {
       gym_name: branding.gym_name || 'Gym',
       member_id: member.member_id || 'MEMBER',
-      fitbhuz_playstore: branding.fitbhuz_playstore_url || 'https://play.google.com/store/apps/details?id=com.fitbhuz.member',
-      fitbhuz_ios: branding.fitbhuz_ios_url || 'https://apps.apple.com/app/fitbhuz/id123456789'
+      android_app_link: androidUrl,
+      ios_app_link: iosUrl,
+      fitbhuz_playstore: androidUrl,
+      fitbhuz_ios: iosUrl
     });
 
     const res = await sendTemplateMessage({
