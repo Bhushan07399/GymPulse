@@ -26,7 +26,9 @@
         "backgroundColor": "#0F172A"
       },
       "permissions": [
-        "CAMERA"
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
@@ -36,6 +38,11 @@
           "cameraPermission": "obo requires camera access to scan gym QR codes for attendance check-in."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "bcda4262-9ee8-47ee-aff3-ee5803a7115b"
+      }
+    }
   }
 }

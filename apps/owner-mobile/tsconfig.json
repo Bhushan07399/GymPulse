@@ -6,13 +6,22 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@i18n/*": ["../../packages/i18n/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@i18n/*": [
+        "../../packages/i18n/*"
+      ]
     },
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true
   },
-  "exclude": ["node_modules", "babel.config.js", "metro.config.js"]
+  "exclude": [
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js"
+  ],
+  "extends": "expo/tsconfig.base"
 }

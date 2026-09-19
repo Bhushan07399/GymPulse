@@ -26,7 +26,9 @@
         "backgroundColor": "#0F172A"
       },
       "permissions": [
-        "CAMERA"
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
@@ -36,6 +38,11 @@
           "cameraPermission": "obo requires camera access to scan member QR passes at reception."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "375c52cd-e1a0-4c36-a1fd-534ca39a747b"
+      }
+    }
   }
 }
