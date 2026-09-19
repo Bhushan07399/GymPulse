@@ -6,7 +6,7 @@ const MEMBER_TOKEN_KEY = "gympulse.member-token";
 const ADMIN_TOKEN_KEY = "obo.admin-token";
 
 export const apiClient = axios.create({
-  baseURL: `${API_URL.replace(/\/$/, "")}/api/v1`,
+  baseURL: `${API_URL.replace(/\/$/, "")}`,
   headers: {
     "Content-Type": "application/json",
   },
