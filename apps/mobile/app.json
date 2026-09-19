@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "obo",
+    "slug": "obo-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.obo.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "obo requires camera access to scan member and gym QR passes."
+      }
+    },
+    "android": {
+      "package": "com.obo.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0F172A"
+      },
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "obo requires camera access to scan member and gym QR passes.",
+          "recordAudioAndroid": false
+        }
+      ]
+    ]
+  }
+}
