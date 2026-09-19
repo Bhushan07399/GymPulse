@@ -366,21 +366,21 @@ export function DashboardOverview() {
           </div>
           <div className="absolute inset-0 bg-gradient-to-r from-[#0F172A] via-[#0F172A]/90 to-transparent" />
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-            <div className="space-y-2">
+            <div className="space-y-2 ">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/20 px-3 py-1 text-xs font-extrabold text-blue-300 border border-blue-400/30">
                 <Activity className="size-3.5 text-blue-400" /> OPERATIONAL DASHBOARD
               </span>
               <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Your gym, at a glance.</h1>
-              <p className="text-xs sm:text-sm text-slate-300 max-w-xl font-medium">
+              <p className="text-xs sm:text-sm text-slate-300  font-medium">
                 Real-time operational view of member activity, entrance check-ins, and current month collections.
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col items-center gap-3">
               <Link href="/dashboard/business-analytics" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-800 border border-slate-700 px-4 py-3 text-xs font-extrabold text-white transition hover:bg-slate-700 shrink-0">
-                <TrendingUp className="size-4" /> Full Analytics
+                <TrendingUp className="size-6" /> Full Analytics
               </Link>
               <Link href="/dashboard/members" className="inline-flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-xs font-extrabold text-slate-900 shadow-lg transition hover:bg-slate-100 shrink-0">
-                <Plus className="size-4" /> Add Member
+                <Plus className="size-6" /> Add Member
               </Link>
             </div>
           </div>
