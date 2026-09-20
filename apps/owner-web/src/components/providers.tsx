@@ -3,7 +3,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { Toaster } from "react-hot-toast";
-import "@/src/lib/i18n";
 
 
 type ProvidersProps = {

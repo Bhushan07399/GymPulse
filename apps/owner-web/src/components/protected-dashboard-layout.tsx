@@ -5,8 +5,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useTranslation } from "react-i18next";
-import "@/src/lib/i18n";
 import { GymSwitcher } from "@/src/components/gym-switcher";
 import {
   BadgePercent,
@@ -138,7 +136,6 @@ const getServerRoleSnapshot = () => null;
 type ProtectedDashboardLayoutProps = { children: ReactNode };
 
 export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutProps) {
-  const { t } = useTranslation();
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -217,7 +214,7 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
   if (!hasDashboardAccess) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] text-sm text-[#64748B]">
-        {t('common.pleaseWait', 'Checking your session...')}
+        Checking your session...
       </div>
     );
   }
@@ -226,10 +223,10 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
   const homeHref = isReceptionist ? "/dashboard/reception" : "/dashboard";
 
   const mobileBottomNavItems = [
-    { label: t('nav.dashboard', 'Home'), href: homeHref, icon: LayoutDashboard },
-    { label: t('nav.members', 'Members'), href: "/dashboard/members", icon: Users },
-    { label: t('nav.attendance', 'Attendance'), href: "/dashboard/attendance", icon: CalendarCheck },
-    { label: t('nav.payments', 'Payments'), href: "/dashboard/payments", icon: Wallet },
+    { label: "Home", href: homeHref, icon: LayoutDashboard },
+    { label: "Members", href: "/dashboard/members", icon: Users },
+    { label: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
+    { label: "Payments", href: "/dashboard/payments", icon: Wallet },
   ];
 
   const sidebar = (
@@ -246,7 +243,7 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
         <div>
           <p className="text-base font-extrabold tracking-tight text-white leading-tight">obo</p>
           <p className="text-[11px] text-slate-400 font-medium">
-            {isReceptionist ? t('auth.signIn', 'Receptionist Portal') : t('nav.management', 'Smart Gym Management')}
+            {isReceptionist ? "Receptionist Portal" : "Smart Gym Management Software"}
           </p>
         </div>
       </div>
@@ -264,7 +261,7 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
           return (
             <div key={group.titleKey} className="space-y-1">
               <p className="px-3 text-[10px] font-extrabold tracking-wider uppercase text-slate-500">
-                {t(group.titleKey, group.defaultTitle)}
+                {group.defaultTitle}
               </p>
               <div className="space-y-0.5">
                 {visibleItems.map((item) => {
@@ -290,7 +287,7 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
                           isActive ? "text-blue-400" : "text-slate-400 group-hover:text-slate-200"
                         }`}
                       />
-                      <span>{t(item.key, item.defaultLabel)}</span>
+                      <span>{item.defaultLabel}</span>
                     </Link>
                   );
                 })}
@@ -310,14 +307,14 @@ export function ProtectedDashboardLayout({ children }: ProtectedDashboardLayoutP
             <div className="min-w-0">
               <p className="text-xs font-bold text-white truncate">Gym Administrator</p>
               <p className="text-[10px] text-slate-400 font-medium truncate">
-                {isReceptionist ? t('staff.receptionist', 'Receptionist') : t('staff.owner', 'Gym Owner')}
+                {isReceptionist ? "Receptionist" : "Gym Owner"}
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={handleLogout}
-            title={t('common.logout', 'Sign Out')}
+            title="Sign Out"
             className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-rose-400 transition"
           >
             <LogOut className="size-4" />

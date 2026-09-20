@@ -444,8 +444,8 @@ const sendFitBhuzIntroWhatsApp = async (gymId, member) => {
     if (customSetting && !customSetting.is_enabled) return;
 
     const templateText = customSetting?.template_body || DEFAULT_TEMPLATES.FITBHUZ_INTRO;
-    const androidUrl = branding.fitbhuz_playstore_url || 'https://play.google.com/store/apps/details?id=com.fitbhuz.member';
-    const iosUrl = branding.fitbhuz_ios_url || 'https://apps.apple.com/app/fitbhuz/id123456789';
+    const androidUrl = branding.fitbhuz_playstore_url || 'https://play.google.com/store/apps/details?id=com.obo.mobile';
+    const iosUrl = branding.fitbhuz_ios_url || 'https://apps.apple.com/app/obo/id123456789';
     const messageBody = renderTemplate(templateText, {
       gym_name: branding.gym_name || 'Gym',
       member_id: member.member_id || 'MEMBER',

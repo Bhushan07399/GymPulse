@@ -519,7 +519,7 @@ const listSubscriptionsAdmin = async ({
       ) AS last_payment
     FROM gyms g
     WHERE ${whereClause}
-    ORDER BY g.subscription_end_date ASC NULLS LAST, g.created_at DESC
+    ORDER BY ${search && search.trim() ? 'g.created_at DESC' : 'g.subscription_end_date ASC NULLS LAST, g.created_at DESC'}
     LIMIT $${dataParams.length - 1} OFFSET $${dataParams.length}
   `;
   const result = await pool.query(query, dataParams);

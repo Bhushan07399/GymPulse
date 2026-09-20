@@ -99,6 +99,14 @@ const updateSubscription = async (request, response) => {
   const pricing = calculateSubscriptionPrice(canonicalPlan, multiGym, locationsCount, cycle);
   const amountPaid = pricing.price || 0;
 
+  const now = new Date();
+  const endDate = new Date(now);
+  if (cycle === 'yearly') {
+    endDate.setFullYear(endDate.getFullYear() + 1);
+  } else {
+    endDate.setMonth(endDate.getMonth() + 1);
+  }
+
   await pool.query(
     `UPDATE gyms
      SET subscription_plan = $1,
@@ -107,26 +115,24 @@ const updateSubscription = async (request, response) => {
          billing_cycle = $4,
          subscription_status = 'ACTIVE',
          subscription_start_date = CURRENT_DATE,
-         subscription_end_date = CASE WHEN $4 = 'yearly' THEN (CURRENT_DATE + INTERVAL '1 year') ELSE (CURRENT_DATE + INTERVAL '1 month') END,
+         subscription_end_date = $5,
          trial_ends_at = NULL
      WHERE id IN (
-       SELECT s.gym_id FROM staff s WHERE LOWER(s.email) = LOWER($5) AND s.role = 'Owner'
+       SELECT s.gym_id FROM staff s WHERE LOWER(s.email) = LOWER($6) AND s.role = 'Owner'
      )`,
-    [canonicalPlan, multiGym, locationsCount, cycle, ownerEmail]
+    [canonicalPlan, multiGym, locationsCount, cycle, endDate, ownerEmail]
   );
 
   await pool.query(
     `INSERT INTO gym_subscription_history (
        gym_id, plan, is_multi_gym, max_locations, billing_cycle, start_date, end_date, amount_paid
      )
-     SELECT g.id, $1, $2, $3, $4, CURRENT_DATE,
-            CASE WHEN $4 = 'yearly' THEN (CURRENT_DATE + INTERVAL '1 year') ELSE (CURRENT_DATE + INTERVAL '1 month') END,
-            $5
+     SELECT g.id, $1, $2, $3, $4, CURRENT_DATE, $5, $6
      FROM gyms g
      WHERE g.id IN (
-       SELECT s.gym_id FROM staff s WHERE LOWER(s.email) = LOWER($6) AND s.role = 'Owner'
+       SELECT s.gym_id FROM staff s WHERE LOWER(s.email) = LOWER($7) AND s.role = 'Owner'
      )`,
-    [canonicalPlan, multiGym, locationsCount, cycle, amountPaid, ownerEmail]
+    [canonicalPlan, multiGym, locationsCount, cycle, endDate, amountPaid, ownerEmail]
   );
 
   response.status(200).json({

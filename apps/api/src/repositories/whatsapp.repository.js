@@ -200,7 +200,7 @@ const getGymBranding = async (gymId) => {
   const result = await pool.query(query, [gymId]);
   return result.rows[0] || {
     id: gymId,
-    gym_name: 'GymPulse Fitness',
+    gym_name: 'obo Gym',
     logo_url: null,
     gym_phone: '',
     email: '',

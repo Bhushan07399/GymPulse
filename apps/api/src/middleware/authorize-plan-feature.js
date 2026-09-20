@@ -124,7 +124,7 @@ const authorizePlanFeature = (featureName) => async (req, res, next) => {
         success: false,
         error: {
           code: 'SUBSCRIPTION_REQUIRED',
-          message: 'Your 3-day free trial or subscription has expired. Please select a subscription plan to continue using GymPulse.',
+          message: 'Your 3-day free trial or subscription has expired. Please select a subscription plan to continue using obo.',
           requiredPlan,
           currentPlan,
           isExpired: true
@@ -204,7 +204,7 @@ const ensureGymSubscriptionActive = async (req, res, next) => {
         success: false,
         error: {
           code: 'SUBSCRIPTION_REQUIRED',
-          message: 'Your 3-day free trial or subscription has expired. Please select a subscription plan to continue using GymPulse.',
+          message: 'Your 3-day free trial or subscription has expired. Please select a subscription plan to continue using obo.',
           isExpired: true
         }
       });

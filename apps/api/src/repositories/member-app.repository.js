@@ -629,7 +629,7 @@ const listMemberNotifications = async (gymId, memberId) => {
     const seedQuery = `
       INSERT INTO notifications (gym_id, member_id, notification_type, delivery_channel, title, message, is_read, sent_at)
       VALUES
-        ($1, $2, 'Announcement', 'In-App', 'Welcome to GymPulse Mobile!', 'Access your digital member ID card, QR check-in, and workout progress anytime.', FALSE, NOW() - INTERVAL '1 hour'),
+        ($1, $2, 'Announcement', 'In-App', 'Welcome to obo Member App!', 'Access your digital member ID card, QR check-in, and workout progress anytime.', FALSE, NOW() - INTERVAL '1 hour'),
         ($1, $2, 'Attendance Reminder', 'In-App', 'QR Scanner Ready', 'Scan your gym reception QR code for instant check-in and check-out tracking.', FALSE, NOW() - INTERVAL '3 hours'),
         ($1, $2, 'Promotion', 'In-App', 'Track Body Metrics', 'Record your height, weight, and fitness goals to view progress analytics.', FALSE, NOW() - INTERVAL '1 day')
     `;

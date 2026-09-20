@@ -28,6 +28,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Local Database
+.postgres-local/
+
 # System & IDE
 .DS_Store
 Thumbs.db

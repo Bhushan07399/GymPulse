@@ -19,6 +19,7 @@ const { adminRouter } = require('./admin.routes');
 const apiRouter = Router();
 
 apiRouter.use('/health', healthRouter);
+apiRouter.use('/api/v1/health', healthRouter);
 apiRouter.use('/api/v1/auth', authRouter);
 apiRouter.use('/api/v1/admin', adminRouter);
 apiRouter.use('/api/v1/gyms', gymRouter);

@@ -65,7 +65,7 @@ const generateGymMemberPrefix = (gymName) => {
 
 const generateNextMemberId = async (gymId, client = pool) => {
   const gymRes = await client.query('SELECT name FROM gyms WHERE id = $1 LIMIT 1', [gymId]);
-  const gymName = gymRes.rows[0]?.name || 'GymPulse';
+  const gymName = gymRes.rows[0]?.name || 'obo';
   const prefix = generateGymMemberPrefix(gymName);
 
   const query = `
@@ -144,7 +144,7 @@ const createMemberWithPayment = async ({ gymId, staffId, member, plan, paymentIn
       member.gender || 'Male',
       member.dateOfBirth || member.joinDate,
       member.phone,
-      member.email || `${publicMemberId.toLowerCase()}@gympulse.local`,
+      member.email || `${publicMemberId.toLowerCase()}@obo.local`,
       member.emergencyContact || member.phone,
       member.address || 'Gym Address',
       member.joinDate,
